@@ -5,7 +5,7 @@
 ## 必要な環境
 
 - Git
-- Node.js 22.12 以上
+- Node.js 22.12.0
 - npm
 - Google Chrome または Microsoft Edge
 
@@ -15,6 +15,13 @@
 node -v
 npm -v
 git --version
+```
+
+本プロジェクトではNode.jsを `22.12.0` に固定しています。nvmを利用している場合は、リポジトリ直下で次を実行してください。
+
+```bash
+nvm install
+nvm use
 ```
 
 ## リポジトリの取得

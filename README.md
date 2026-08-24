@@ -20,9 +20,12 @@ Webカメラと画像認識を利用し、作業中の集中状態をスコア�
 詳しい手順は [INITIAL_SETUP.md](./INITIAL_SETUP.md) を参照してください。
 
 ```bash
+nvm use
 npm install
 npm run dev
 ```
+
+Node.jsのバージョンは `.nvmrc` と `package.json` で `22.12.0` に固定しています。
 
 ## 開発状況
 
