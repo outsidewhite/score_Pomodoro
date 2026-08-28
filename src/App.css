@@ -1,5 +1,5 @@
 .camera-page {
-  width: min(1120px, 100%);
+  width: min(1280px, 100%);
   min-height: 100svh;
   margin: 0 auto;
   padding: 0 32px 48px;
@@ -82,9 +82,40 @@
   background: var(--danger);
 }
 
+.header-statuses {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-status--loading .status-dot {
+  background: #e5a23b;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.model-status--ready {
+  color: #216644;
+  border-color: #c8e8d7;
+  background: #f2fbf6;
+}
+
+.model-status--ready .status-dot {
+  background: var(--success);
+}
+
+.model-status--error {
+  color: var(--danger);
+  border-color: #f1c9c9;
+  background: #fff7f7;
+}
+
+.model-status--error .status-dot {
+  background: var(--danger);
+}
+
 .camera-demo {
-  width: min(760px, 100%);
-  margin: 64px auto 0;
+  width: 100%;
+  margin: 24px auto 0;
 }
 
 .intro {
@@ -92,7 +123,7 @@
 }
 
 .eyebrow {
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   color: var(--primary);
   font-size: 12px;
   font-weight: 800;
@@ -102,24 +133,24 @@
 .intro h1 {
   margin: 0;
   color: var(--text-strong);
-  font-size: clamp(32px, 5vw, 46px);
+  font-size: clamp(30px, 4vw, 40px);
   line-height: 1.2;
   letter-spacing: -0.04em;
 }
 
 .intro > p:last-child {
-  max-width: 560px;
-  margin: 16px auto 0;
+  max-width: 720px;
+  margin: 10px auto 0;
   color: var(--text-muted);
   font-size: 15px;
-  line-height: 1.8;
+  line-height: 1.6;
 }
 
 .preview {
   position: relative;
   overflow: hidden;
   aspect-ratio: 16 / 9;
-  margin-top: 36px;
+  margin-top: 0;
   border: 1px solid #dfe2e7;
   border-radius: 18px;
   background: #eef0f2;
@@ -271,9 +302,364 @@
   stroke-width: 1.7;
 }
 
+/* カメラと解析値を同じ視線の中で比較できる2カラムにする。 */
+.workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(500px, 1.05fr);
+  align-items: start;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.camera-column {
+  min-width: 0;
+}
+
+/* リアルタイム解析値を人物ごとに確認しやすいデバッグ領域として整える。 */
+.analysis-panel {
+  display: flex;
+  overflow: hidden;
+  height: clamp(460px, calc(100svh - 255px), 640px);
+  min-width: 0;
+  margin-top: 0;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-sizing: border-box;
+  flex-direction: column;
+  background: #fff;
+  box-shadow: 0 12px 36px rgb(28 33 41 / 6%);
+}
+
+.landmark-explanation {
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  background: #fbfcfb;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.landmark-explanation p {
+  margin: 0;
+}
+
+.landmark-explanation p strong {
+  display: block;
+  color: var(--text-strong);
+  font-size: 12px;
+}
+
+.landmark-explanation details {
+  margin-top: 7px;
+}
+
+.landmark-explanation summary {
+  width: fit-content;
+  color: var(--primary);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.landmark-guide-list {
+  display: grid;
+  overflow-y: auto;
+  max-height: 170px;
+  margin: 9px 0 0;
+  padding: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 14px;
+  border-radius: 8px;
+  list-style: none;
+  background: #f0f3f1;
+}
+
+.landmark-guide-list li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+
+.landmark-guide-list li > span {
+  display: inline-grid;
+  width: 23px;
+  height: 20px;
+  place-items: center;
+  border-radius: 5px;
+  color: var(--primary);
+  background: #fff;
+  font-family: monospace;
+  font-weight: 800;
+}
+
+.analysis-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.analysis-kicker {
+  margin: 0 0 5px;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+}
+
+.analysis-header h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+.model-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: #f3f4f5;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.model-badge > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e5a23b;
+}
+
+.model-badge--ready {
+  color: #216644;
+  background: #eff9f3;
+}
+
+.model-badge--ready > span {
+  background: var(--success);
+}
+
+.model-badge--error {
+  color: var(--danger);
+  background: #fff1f1;
+}
+
+.model-badge--error > span {
+  background: var(--danger);
+}
+
+.analysis-empty {
+  display: flex;
+  min-height: 150px;
+  padding: 28px;
+  box-sizing: border-box;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.analysis-output {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.analysis-empty strong {
+  color: var(--text-strong);
+  font-size: 15px;
+}
+
+.analysis-empty span:not(.loading-spinner) {
+  max-width: 570px;
+  margin-top: 7px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.analysis-empty--error {
+  color: #8f3232;
+  background: #fffafa;
+}
+
+.analysis-empty--error strong {
+  color: var(--danger);
+}
+
+.loading-spinner {
+  width: 22px;
+  height: 22px;
+  margin-bottom: 13px;
+  border: 2px solid #d8ddda;
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+.detection-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 3px 16px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  background: #fafbf9;
+}
+
+.detection-summary > span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.detection-summary strong {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  color: var(--primary);
+  font-size: 24px;
+}
+
+.detection-summary small {
+  color: #989da4;
+  font-size: 10px;
+}
+
+.no-detection {
+  display: flex;
+  min-height: 130px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.no-detection strong {
+  color: var(--text-strong);
+  font-size: 16px;
+}
+
+.no-detection span {
+  margin-top: 7px;
+  font-size: 12px;
+}
+
+.people-list {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 16px;
+  flex: 1;
+}
+
+.person-result {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.person-result + .person-result {
+  margin-top: 12px;
+}
+
+.person-result summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  color: var(--text-strong);
+  background: #f7f8f7;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.person-result summary small {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.landmark-table-wrap {
+  overflow-x: auto;
+  max-height: 390px;
+}
+
+.landmark-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.landmark-table th,
+.landmark-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #edf0ee;
+  text-align: right;
+}
+
+.landmark-table th:first-child,
+.landmark-table td:first-child {
+  text-align: center;
+}
+
+.landmark-table .landmark-name {
+  color: var(--text-strong);
+  font-family: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+
+.landmark-table thead th {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  color: #59616a;
+  background: #f0f3f1;
+  font-family: inherit;
+  font-weight: 750;
+}
+
+.landmark-table tbody th {
+  color: var(--primary);
+  background: #fbfcfb;
+}
+
+.landmark-table tbody tr:hover {
+  background: #f8faf9;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @keyframes pulse {
   50% {
     opacity: 0.45;
+  }
+}
+
+@media (max-width: 980px) {
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analysis-panel {
+    height: auto;
+    min-height: 460px;
   }
 }
 
@@ -296,8 +682,21 @@
 
   .preview {
     aspect-ratio: 4 / 3;
-    margin-top: 28px;
+    margin-top: 0;
     border-radius: 14px;
+  }
+
+  .workspace-grid {
+    gap: 20px;
+    margin-top: 28px;
+  }
+
+  .analysis-panel {
+    min-height: 420px;
+  }
+
+  .landmark-guide-list {
+    grid-template-columns: 1fr;
   }
 
   .preview-placeholder span {
