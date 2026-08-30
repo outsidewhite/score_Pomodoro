@@ -1,27 +1,2 @@
-:root {
-  --primary: #316552;
-  --success: #30a36b;
-  --danger: #b84848;
-  --text-strong: #20252c;
-  --text-muted: #69707a;
-  --border: #e3e5e8;
-  font-family:
-    Inter, "Noto Sans JP", "Yu Gothic UI", "Yu Gothic", system-ui, sans-serif;
-  color: var(--text-strong);
-  background: #fafaf9;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  min-width: 320px;
-  min-height: 100vh;
-  margin: 0;
-}
-
-button,
-a {
-  -webkit-tap-highlight-color: transparent;
-}
+@import './styles/tokens.css';
+@import './styles/globals.css';

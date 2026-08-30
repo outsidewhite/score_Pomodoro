@@ -4,10 +4,8 @@ import {
   PoseLandmarker,
   type NormalizedLandmark,
 } from '@mediapipe/tasks-vision'
+import type { CameraStatus, ModelStatus } from './features/camera/cameraTypes.ts'
 import './App.css'
-
-type CameraStatus = 'idle' | 'requesting' | 'active' | 'error'
-type ModelStatus = 'loading' | 'ready' | 'error'
 
 type AnalysisResult = {
   detectedAt: number

@@ -106,8 +106,11 @@ src/
 │     └─ ResultPage.css
 ├─ components/
 │  └─ ui/
+│     ├─ Button.tsx
+│     └─ Button.css
 ├─ features/
 │  ├─ camera/
+│  │  └─ cameraTypes.ts
 │  ├─ pose/
 │  │  ├─ poseMetrics.ts
 │  │  └─ poseTypes.ts
@@ -135,6 +138,7 @@ export type ScoreResult = {
   totalScore: number
   postureScore: number
   stabilityScore: number
+  presenceScore: number
   measuredDurationMs: number
 }
 
@@ -145,6 +149,7 @@ export function calculateScore(): ScoreResult {
     totalScore: 0,
     postureScore: 0,
     stabilityScore: 0,
+    presenceScore: 0,
     measuredDurationMs: 0,
   }
 }

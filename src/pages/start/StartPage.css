@@ -1,0 +1,31 @@
+.start-page {
+  display: grid;
+  min-height: 100svh;
+  padding: var(--space-8);
+  box-sizing: border-box;
+  place-items: center;
+}
+
+.start-page__content {
+  width: min(560px, 100%);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.start-page__content h1 {
+  margin: 0;
+  color: var(--color-text-strong);
+}
+
+.start-page__content > p:not(.start-page__eyebrow) {
+  margin: var(--space-4) 0 var(--space-6);
+  line-height: 1.8;
+}
+
+.start-page__eyebrow {
+  margin: 0 0 var(--space-2);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
