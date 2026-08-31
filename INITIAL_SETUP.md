@@ -34,8 +34,10 @@ cd score_Pomodoro
 ## 依存パッケージのインストール
 
 ```bash
-npm install
+npm ci
 ```
+
+共同開発では、`package-lock.json`に記録された依存パッケージを同じバージョンで再現するため、通常は`npm ci`を使用します。
 
 ## 開発サーバーの起動
 
@@ -45,24 +47,20 @@ npm run dev
 
 ターミナルに表示されたURL（通常は `http://localhost:5173/`）をブラウザで開きます。
 
-React + TypeScript + Vite の初期画面が表示されれば、雛形のセットアップは完了です。
+カメラ映像と姿勢ランドマークの解析デモ画面が表示されれば、セットアップは完了です。カメラを起動する場合は、ブラウザの確認画面で利用を許可してください。
 
 ## 確認コマンド
 
 ```bash
+npm run test
 npm run lint
 npm run build
 ```
 
-## 今後配置するモデル
+`npm run test`では、姿勢指標からスコアを計算するTypeScript処理を確認します。
 
-MediaPipeを実装する段階で、次のモデルファイルを配置する予定です。現時点では未配置です。
+## MediaPipeモデル
 
-```text
-public/
-└─ models/
-   ├─ face_landmarker.task
-   └─ pose_landmarker.task
-```
+現在のデモは、MediaPipe Tasks VisionのWasmとPose LandmarkerモデルをCDNから読み込みます。そのため、初回表示時と解析開始時にはネットワーク接続が必要です。
 
-カメラ機能の実装後は、初回アクセス時にブラウザのカメラ利用を許可してください。本番公開時はHTTPSが必要です。
+将来モデルをローカル配信へ変更する場合は、モデルファイルを`public/models/`へ配置し、`src/App.tsx`のモデルパスを更新します。本番公開時にカメラを利用するにはHTTPSが必要です。

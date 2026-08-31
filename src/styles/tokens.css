@@ -1,0 +1,30 @@
+:root {
+  /* Figma Variablesと対応させる共通デザイントークン。 */
+  --color-primary: #316552;
+  --color-success: #30a36b;
+  --color-danger: #b84848;
+  --color-text-strong: #20252c;
+  --color-text-muted: #69707a;
+  --color-border: #e3e5e8;
+  --color-surface: #fff;
+  --color-background: #fafaf9;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --radius-md: 10px;
+  --radius-lg: 18px;
+
+  /* 既存デモとの互換性を保つため、従来名も共通トークンへ接続する。 */
+  --primary: var(--color-primary);
+  --success: var(--color-success);
+  --danger: var(--color-danger);
+  --text-strong: var(--color-text-strong);
+  --text-muted: var(--color-text-muted);
+  --border: var(--color-border);
+}

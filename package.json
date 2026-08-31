@@ -10,6 +10,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "node --experimental-strip-types --test src/features/scoring/calculateScore.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
