@@ -11,8 +11,7 @@
     transform 160ms ease,
     color 160ms ease,
     background-color 160ms ease,
-    border-color 160ms ease,
-    box-shadow 160ms ease;
+    border-color 160ms ease;
 }
 
 .ui-button:not(:disabled):hover {
@@ -32,7 +31,6 @@
 .ui-button--primary {
   color: #fff;
   background: var(--color-primary);
-  box-shadow: 0 8px 18px rgb(23 106 115 / 18%);
 }
 
 .ui-button--primary:not(:disabled):hover {

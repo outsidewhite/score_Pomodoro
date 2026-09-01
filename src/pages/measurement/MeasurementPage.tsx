@@ -50,21 +50,8 @@ export function MeasurementPage({
         <div className="measurement-page__left-column">
           <section
             className="measurement-panel measurement-panel--camera"
-            aria-labelledby="camera-panel-title"
+            aria-label="カメラ"
           >
-            <header className="measurement-panel__header">
-              <div>
-                <span className="measurement-panel__accent" aria-hidden="true" />
-                <div>
-                  <p>CAMERA</p>
-                  <h2 id="camera-panel-title">カメラ</h2>
-                </div>
-              </div>
-              <span className="measurement-panel__badge">
-                {isCameraRunning ? '起動中' : '停止中'}
-              </span>
-            </header>
-
             <div className="camera-panel__body">
               <div
                 className={`camera-panel__preview ${!isCameraVisible ? 'camera-panel__preview--hidden' : ''}`}
@@ -103,18 +90,8 @@ export function MeasurementPage({
 
           <section
             className="measurement-panel measurement-panel--timer"
-            aria-labelledby="timer-panel-title"
+            aria-label="タイマー"
           >
-            <header className="measurement-panel__header">
-              <div>
-                <span className="measurement-panel__accent" aria-hidden="true" />
-                <div>
-                  <p>TIMER</p>
-                  <h2 id="timer-panel-title">タイマー</h2>
-                </div>
-              </div>
-            </header>
-
             <div className="timer-panel__body">
               <div className="timer-panel__log" aria-label="セッションログ">
                 <h3>セッションログ</h3>
@@ -142,19 +119,8 @@ export function MeasurementPage({
 
         <section
           className="measurement-panel measurement-panel--score"
-          aria-labelledby="score-panel-title"
+          aria-label="集中スコア"
         >
-          <header className="measurement-panel__header">
-            <div>
-              <span className="measurement-panel__accent" aria-hidden="true" />
-              <div>
-                <p>SCORE</p>
-                <h2 id="score-panel-title">集中スコア</h2>
-              </div>
-            </div>
-            <span className="measurement-panel__badge">LIVE</span>
-          </header>
-
           <div className="score-panel__body">
             <div className="score-panel__current" aria-live="polite">
               <span>現在のスコア</span>
