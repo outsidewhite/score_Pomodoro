@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   FilesetResolver,
   PoseLandmarker,
   type NormalizedLandmark,
 } from '@mediapipe/tasks-vision'
 import type { CameraStatus, ModelStatus } from './features/camera/cameraTypes.ts'
+import { calculateScore } from './features/scoring/calculateScore.ts'
+import type { ScoreResult } from './features/scoring/scoreTypes.ts'
 import './App.css'
 
 type AnalysisResult = {
@@ -111,6 +113,7 @@ function App() {
   const [modelErrorMessage, setModelErrorMessage] = useState('')
   const [analysisErrorMessage, setAnalysisErrorMessage] = useState('')
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
+  const [focusScore, setFocusScore] = useState<ScoreResult | null>(null)
 
   const stopAnalysis = () => {
     // 次の解析フレームを取り消し、再開時は同じ映像時刻を再利用しないようにする。
@@ -239,6 +242,23 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (!analysisResult || analysisResult.people.length === 0) {
+      setFocusScore(null)
+      return
+    }
+
+    const firstPerson = analysisResult.people[0]
+    const score = calculateScore([
+      {
+        landmarks: firstPerson,
+        timestampMs: analysisResult.detectedAt,
+      },
+    ])
+
+    setFocusScore(score)
+  }, [analysisResult])
+
+  useEffect(() => {
     if (status !== 'active' || modelStatus !== 'ready') {
       return
     }
@@ -285,6 +305,19 @@ function App() {
 
   const isActive = status === 'active'
   const isRequesting = status === 'requesting'
+
+  const focusSummary = useMemo(() => {
+    if (!focusScore) {
+      return null
+    }
+
+    return [
+      { label: '総合', value: focusScore.totalScore },
+      { label: '姿勢', value: focusScore.postureScore },
+      { label: '安定性', value: focusScore.stabilityScore },
+      { label: '検出状態', value: focusScore.presenceScore },
+    ]
+  }, [focusScore])
 
   return (
     <main className="camera-page">
@@ -434,6 +467,24 @@ function App() {
                 <strong>{analysisResult.people.length}人</strong>
                 <small>更新: {Math.round(analysisResult.detectedAt)} ms</small>
               </div>
+
+              {focusSummary && (
+                <div className="score-summary" aria-live="polite">
+                  <div className="score-summary__header">
+                    <span>最終集中スコア</span>
+                    <strong>{focusScore!.totalScore}</strong>
+                  </div>
+
+                  <div className="score-summary__grid">
+                    {focusSummary.map(({ label, value }) => (
+                      <div key={label} className="score-summary__item">
+                        <span>{label}</span>
+                        <strong>{value}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {analysisResult.people.length === 0 ? (
                 <div className="no-detection">
