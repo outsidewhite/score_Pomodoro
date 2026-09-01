@@ -5,8 +5,9 @@ import {
   type NormalizedLandmark,
 } from '@mediapipe/tasks-vision'
 import type { CameraStatus, ModelStatus } from './features/camera/cameraTypes.ts'
-import { calculateScore } from './features/scoring/calculateScore.ts'
+import { calculateAverageFocusScore, calculateScore } from './features/scoring/calculateScore.ts'
 import type { ScoreResult } from './features/scoring/scoreTypes.ts'
+import type { PoseFrame } from './features/pose/poseTypes.ts'
 import './App.css'
 
 type AnalysisResult = {
@@ -114,6 +115,7 @@ function App() {
   const [analysisErrorMessage, setAnalysisErrorMessage] = useState('')
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
   const [focusScore, setFocusScore] = useState<ScoreResult | null>(null)
+  const [frameHistory, setFrameHistory] = useState<PoseFrame[]>([])
 
   const stopAnalysis = () => {
     // 次の解析フレームを取り消し、再開時は同じ映像時刻を再利用しないようにする。
@@ -140,6 +142,7 @@ function App() {
       setErrorMessage('')
       setAnalysisErrorMessage('')
       setAnalysisResult(null)
+      setFrameHistory([])
     }
   }
 
@@ -248,15 +251,42 @@ function App() {
     }
 
     const firstPerson = analysisResult.people[0]
-    const score = calculateScore([
-      {
-        landmarks: firstPerson,
-        timestampMs: analysisResult.detectedAt,
-      },
-    ])
+    const frame: PoseFrame = {
+      landmarks: firstPerson,
+      timestampMs: analysisResult.detectedAt,
+    }
+    const score = calculateScore([frame])
 
     setFocusScore(score)
+
+    setFrameHistory((prev) => {
+      const updated = [...prev, frame]
+      const maxHistoryMs = 5 * 60 * 1_000
+      const cutoff = frame.timestampMs - maxHistoryMs
+      return updated.filter((f) => f.timestampMs > cutoff)
+    })
   }, [analysisResult])
+
+  useEffect(() => {
+    if (frameHistory.length === 0) return
+
+    const averageResult = calculateAverageFocusScore(frameHistory, undefined, {
+      sampleIntervalMs: 180_000,
+      evaluationWindowMs: 300_000,
+    })
+
+    if (averageResult.results.length > 0) {
+      console.log(
+        `[3分平均スコア] 総合: ${averageResult.averageTotalScore} (サンプル数: ${averageResult.sampleCount})`,
+        averageResult.results.map((r) => ({
+          total: r.totalScore,
+          posture: r.postureScore,
+          stability: r.stabilityScore,
+          presence: r.presenceScore,
+        })),
+      )
+    }
+  }, [frameHistory])
 
   useEffect(() => {
     if (status !== 'active' || modelStatus !== 'ready') {
