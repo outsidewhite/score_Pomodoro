@@ -11,12 +11,18 @@ export type PoseFrame = {
 }
 
 export type PoseMetrics = {
-  posture: number
-  presence: number
-  stability: number
+  presenceRatio: number
+  continuityRatio: number
+  movementRatio: number
+  orientationRatio: number
 }
 
 export type PoseMetricOptions = {
+  absenceGraceSamples: number
+  fullScoreOrientationAngleDegrees: number
+  maxOrientationAngleDegrees: number
+  maxConsecutiveAbsenceSamples: number
   maxMovement: number
-  maxTilt: number
+  movementGrace: number
+  minLandmarkVisibility: number
 }

@@ -17,16 +17,20 @@ export function ResultPage({ onRestart, result }: ResultPageProps) {
 
         <dl className="result-page__details">
           <div>
-            <dt>姿勢</dt>
-            <dd>{result.postureScore}</dd>
+            <dt>在席</dt>
+            <dd>{result.presencePoints}</dd>
           </div>
           <div>
-            <dt>安定性</dt>
-            <dd>{result.stabilityScore}</dd>
+            <dt>作業継続</dt>
+            <dd>{result.continuityPoints}</dd>
           </div>
           <div>
-            <dt>検出状態</dt>
-            <dd>{result.presenceScore}</dd>
+            <dt>動作</dt>
+            <dd>{result.movementPoints}</dd>
+          </div>
+          <div>
+            <dt>体の向き</dt>
+            <dd>{result.orientationPoints}</dd>
           </div>
         </dl>
 
