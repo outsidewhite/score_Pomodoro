@@ -6,7 +6,6 @@ import {
 } from '@mediapipe/tasks-vision'
 import type { CameraStatus, ModelStatus } from './features/camera/cameraTypes.ts'
 import { calculateAverageFocusScore, calculateScore } from './features/scoring/calculateScore.ts'
-import type { ScoreResult } from './features/scoring/scoreTypes.ts'
 import type { PoseFrame } from './features/pose/poseTypes.ts'
 import './App.css'
 
@@ -115,8 +114,20 @@ function App() {
   const [modelErrorMessage, setModelErrorMessage] = useState('')
   const [analysisErrorMessage, setAnalysisErrorMessage] = useState('')
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
-  const [focusScore, setFocusScore] = useState<ScoreResult | null>(null)
   const [frameHistory, setFrameHistory] = useState<PoseFrame[]>([])
+
+  const focusScore = useMemo(() => {
+    if (!analysisResult || analysisResult.people.length === 0) {
+      return null
+    }
+
+    return calculateScore([
+      {
+        landmarks: analysisResult.people[0],
+        timestampMs: analysisResult.detectedAt,
+      },
+    ])
+  }, [analysisResult])
 
   const stopAnalysis = () => {
     // 次の解析フレームを取り消し、再開時は同じ映像時刻を再利用しないようにする。
@@ -246,29 +257,6 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!analysisResult || analysisResult.people.length === 0) {
-      setFocusScore(null)
-      return
-    }
-
-    const firstPerson = analysisResult.people[0]
-    const frame: PoseFrame = {
-      landmarks: firstPerson,
-      timestampMs: analysisResult.detectedAt,
-    }
-    const score = calculateScore([frame])
-
-    setFocusScore(score)
-
-    setFrameHistory((prev) => {
-      const updated = [...prev, frame]
-      const maxHistoryMs = 5 * 60 * 1_000
-      const cutoff = frame.timestampMs - maxHistoryMs
-      return updated.filter((f) => f.timestampMs > cutoff)
-    })
-  }, [analysisResult])
-
-  useEffect(() => {
     if (frameHistory.length === 0) return
 
     const now = performance.now()
@@ -331,7 +319,21 @@ function App() {
           const people = result.landmarks.map((landmarks) =>
             landmarks.map((landmark) => ({ ...landmark })),
           )
-          setAnalysisResult({ detectedAt: performance.now(), people })
+          const detectedAt = performance.now()
+          setAnalysisResult({ detectedAt, people })
+
+          if (people.length > 0) {
+            const frame: PoseFrame = {
+              landmarks: people[0],
+              timestampMs: detectedAt,
+            }
+            setFrameHistory((prev) => {
+              const updated = [...prev, frame]
+              const maxHistoryMs = 5 * 60 * 1_000
+              const cutoff = frame.timestampMs - maxHistoryMs
+              return updated.filter((historyFrame) => historyFrame.timestampMs > cutoff)
+            })
+          }
         } catch (error) {
           setAnalysisErrorMessage(getAnalysisErrorMessage(error))
           return
