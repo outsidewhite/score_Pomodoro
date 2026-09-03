@@ -108,6 +108,7 @@ function App() {
   const animationFrameRef = useRef<number | null>(null)
   const lastVideoTimeRef = useRef(-1)
   const isMountedRef = useRef(true)
+  const lastLogTimeRef = useRef<number | null>(null) // 追加
   const [status, setStatus] = useState<CameraStatus>('idle')
   const [modelStatus, setModelStatus] = useState<ModelStatus>('loading')
   const [errorMessage, setErrorMessage] = useState('')
@@ -270,6 +271,20 @@ function App() {
   useEffect(() => {
     if (frameHistory.length === 0) return
 
+    const now = performance.now()
+    const logIntervalMs = 30 * 1_000 // 30秒
+
+    // 最後のログ出力から30秒経過していない場合はスキップ
+    if (lastLogTimeRef.current !== null && (now - lastLogTimeRef.current) < logIntervalMs) {
+      const remainingTime = logIntervalMs - (now - lastLogTimeRef.current)
+      // 30秒経過を待ってから再度実行を試みる
+      const timerId = setTimeout(() => {
+        // frameHistory が更新されていれば再度useEffectが走るので、
+        // ここで直接ログは出力せず、stateに依存して再評価を待つ
+      }, remainingTime);
+      return () => clearTimeout(timerId);
+    }
+
     const averageResult = calculateAverageFocusScore(frameHistory, undefined, {
       sampleIntervalMs: 180_000,
       evaluationWindowMs: 300_000,
@@ -285,6 +300,7 @@ function App() {
           presence: r.presenceScore,
         })),
       )
+      lastLogTimeRef.current = now // ログ出力時刻を更新
     }
   }, [frameHistory])
 
