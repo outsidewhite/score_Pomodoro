@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Timer } from '../../components/Timer/Timer.tsx'
 import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import type { MeasurementStatus } from '../../shared/types/measurement.ts'
@@ -12,14 +13,6 @@ type MeasurementPageProps = {
   status: MeasurementStatus
   targetMinutes?: number
   targetScore?: number
-}
-
-function formatElapsedTime(elapsedMs: number) {
-  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1_000))
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
 function formatScore(score: number) {
@@ -111,11 +104,12 @@ export function MeasurementPage({
               </div>
 
               <div className="timer-panel__clock">
-                <p>経過時間 / 目標 {targetMinutes}分</p>
-                <strong aria-live="polite">{formatElapsedTime(elapsedMs)}</strong>
-                <Button onClick={onFinish} disabled={status !== 'measuring'}>
-                  計測を終了
-                </Button>
+                <Timer
+                  disabled={status !== 'measuring'}
+                  initialElapsedMs={elapsedMs}
+                  onExit={onFinish}
+                  targetMinutes={targetMinutes}
+                />
               </div>
             </div>
           </section>
