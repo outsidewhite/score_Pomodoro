@@ -1,13 +1,17 @@
 import { useState } from 'react'
+import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import type { MeasurementStatus } from '../../shared/types/measurement.ts'
 import './MeasurementPage.css'
 
 type MeasurementPageProps = {
-  currentScore: number | null
   elapsedMs: number
   onFinish: () => void
+  originalScore: number
+  scoreIncrement: number | null
   status: MeasurementStatus
+  targetMinutes?: number
+  targetScore?: number
 }
 
 function formatElapsedTime(elapsedMs: number) {
@@ -18,32 +22,32 @@ function formatElapsedTime(elapsedMs: number) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
+function formatScore(score: number) {
+  return score.toLocaleString('ja-JP')
+}
+
 export function MeasurementPage({
-  currentScore,
   elapsedMs,
   onFinish,
+  originalScore,
+  scoreIncrement,
   status,
+  targetMinutes = 25,
+  targetScore = 80,
 }: MeasurementPageProps) {
   // 実際のカメラ制御を接続するまで、画面上の表示状態だけを管理する。
   const [isCameraVisible, setIsCameraVisible] = useState(true)
   const [isCameraRunning, setIsCameraRunning] = useState(false)
-  const scoreLabel = currentScore === null ? '—' : currentScore
+  // 現在値は、計測開始前のスコアへバックエンドからの加算分を足して求める。
+  const addedScore = scoreIncrement ?? 0
+  const currentScore = originalScore + addedScore
 
   return (
     <main className="measurement-page">
-      <header className="measurement-page__header">
-        <div className="measurement-page__brand">
-          <span aria-hidden="true">S</span>
-          <div>
-            <strong>Score Pomodoro</strong>
-            <small>FOCUS SESSION</small>
-          </div>
-        </div>
-        <div className="measurement-page__session-status" role="status">
-          <span aria-hidden="true" />
-          {status === 'measuring' ? '計測中' : '計測準備中'}
-        </div>
-      </header>
+      <AppHeader
+        status={status === 'measuring' ? '計測中' : '計測準備中'}
+        statusTone={status === 'measuring' ? 'active' : 'setup'}
+      />
 
       {/* 左を上下1:1、画面全体を横3:2に分ける計測画面の基本骨格。 */}
       <div className="measurement-page__layout">
@@ -107,7 +111,7 @@ export function MeasurementPage({
               </div>
 
               <div className="timer-panel__clock">
-                <p>経過時間</p>
+                <p>経過時間 / 目標 {targetMinutes}分</p>
                 <strong aria-live="polite">{formatElapsedTime(elapsedMs)}</strong>
                 <Button onClick={onFinish} disabled={status !== 'measuring'}>
                   計測を終了
@@ -124,14 +128,17 @@ export function MeasurementPage({
           <div className="score-panel__body">
             <div className="score-panel__current" aria-live="polite">
               <span>現在のスコア</span>
-              <strong>{scoreLabel}</strong>
-              <small>/ 100</small>
+              <strong>{formatScore(currentScore)}</strong>
+              <small>
+                元のスコア {formatScore(originalScore)} ＋ 加算{' '}
+                {scoreIncrement === null ? '—' : formatScore(scoreIncrement)}
+              </small>
             </div>
 
             <div className="score-panel__target">
               <div>
                 <span>目標スコア</span>
-                <strong>80</strong>
+                <strong>{targetScore}</strong>
               </div>
               <div className="score-panel__progress" aria-hidden="true">
                 <span />
