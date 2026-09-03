@@ -1,491 +1,101 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { ScoreResult } from './features/scoring/scoreTypes.ts'
+import { MeasurementPage } from './pages/measurement/MeasurementPage.tsx'
+import { ResultPage } from './pages/result/ResultPage.tsx'
 import {
-  FilesetResolver,
-  PoseLandmarker,
-  type NormalizedLandmark,
-} from '@mediapipe/tasks-vision'
-import type { CameraStatus, ModelStatus } from './features/camera/cameraTypes.ts'
+  StartPage,
+  type SessionSettings,
+} from './pages/start/StartPage.tsx'
 import './App.css'
 
-type AnalysisResult = {
-  detectedAt: number
-  people: NormalizedLandmark[][]
+type AppPage = 'measurement' | 'result' | 'start'
+
+const DEFAULT_SETTINGS: SessionSettings = {
+  targetMinutes: 25,
+  targetScore: 80,
 }
 
-const MEDIAPIPE_WASM_PATH =
-  'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm'
-const POSE_LANDMARKER_MODEL_PATH =
-  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task'
+// バックエンド接続前に加算表示を確認するための元スコア。
+const PREVIEW_ORIGINAL_SCORE = 1_200
 
-// MediaPipe Pose Landmarkerが返す33点の番号と身体部位の対応表。
-const POSE_LANDMARK_NAMES = [
-  '鼻',
-  '左目（内側）',
-  '左目',
-  '左目（外側）',
-  '右目（内側）',
-  '右目',
-  '右目（外側）',
-  '左耳',
-  '右耳',
-  '口（左）',
-  '口（右）',
-  '左肩',
-  '右肩',
-  '左ひじ',
-  '右ひじ',
-  '左手首',
-  '右手首',
-  '左小指',
-  '右小指',
-  '左人差し指',
-  '右人差し指',
-  '左親指',
-  '右親指',
-  '左腰',
-  '右腰',
-  '左ひざ',
-  '右ひざ',
-  '左足首',
-  '右足首',
-  '左かかと',
-  '右かかと',
-  '左つま先',
-  '右つま先',
-] as const
-
-const cameraStatusLabel: Record<CameraStatus, string> = {
-  idle: '停止中',
-  requesting: '接続中',
-  active: '起動中',
-  error: 'エラー',
+// 結果画面のデザイン確認用データ。実計測との接続時に置き換える。
+const PREVIEW_RESULT: ScoreResult = {
+  measuredDurationMs: 25 * 60 * 1_000,
+  postureScore: 82,
+  presenceScore: 91,
+  stabilityScore: 76,
+  totalScore: 83,
 }
 
-const modelStatusLabel: Record<ModelStatus, string> = {
-  loading: 'モデル読込中',
-  ready: 'モデル準備完了',
-  error: 'モデルエラー',
-}
-
-function getCameraErrorMessage(error: unknown) {
-  if (!(error instanceof DOMException)) {
-    return 'カメラを起動できませんでした。時間をおいて再度お試しください。'
+function getPageFromPath(): AppPage {
+  if (window.location.pathname === '/measurement') {
+    return 'measurement'
   }
 
-  switch (error.name) {
-    case 'NotAllowedError':
-      return 'カメラの利用が許可されませんでした。ブラウザの設定からカメラを許可してください。'
-    case 'NotFoundError':
-      return '利用できるカメラが見つかりませんでした。カメラの接続を確認してください。'
-    case 'NotReadableError':
-      return 'カメラを使用できませんでした。他のアプリがカメラを使用していないか確認してください。'
-    default:
-      return 'カメラを起動できませんでした。ブラウザの設定やカメラの接続を確認してください。'
+  if (window.location.pathname === '/result') {
+    return 'result'
   }
-}
 
-function getModelErrorMessage(error: unknown) {
-  const detail = error instanceof Error ? `（${error.message}）` : ''
-  return `姿勢解析モデルを読み込めませんでした。ネットワーク接続を確認してページを再読み込みしてください。${detail}`
-}
-
-function getAnalysisErrorMessage(error: unknown) {
-  const detail = error instanceof Error ? `（${error.message}）` : ''
-  return `映像フレームの解析中にエラーが発生しました。カメラを停止して再度お試しください。${detail}`
-}
-
-function formatCoordinate(value: number) {
-  return Number.isFinite(value) ? value.toFixed(5) : '取得不可'
+  return 'start'
 }
 
 function App() {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const poseLandmarkerRef = useRef<PoseLandmarker | null>(null)
-  const animationFrameRef = useRef<number | null>(null)
-  const lastVideoTimeRef = useRef(-1)
-  const isMountedRef = useRef(true)
-  const [status, setStatus] = useState<CameraStatus>('idle')
-  const [modelStatus, setModelStatus] = useState<ModelStatus>('loading')
-  const [errorMessage, setErrorMessage] = useState('')
-  const [modelErrorMessage, setModelErrorMessage] = useState('')
-  const [analysisErrorMessage, setAnalysisErrorMessage] = useState('')
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
-
-  const stopAnalysis = () => {
-    // 次の解析フレームを取り消し、再開時は同じ映像時刻を再利用しないようにする。
-    if (animationFrameRef.current !== null) {
-      window.cancelAnimationFrame(animationFrameRef.current)
-      animationFrameRef.current = null
-    }
-    lastVideoTimeRef.current = -1
-  }
-
-  const stopCamera = () => {
-    stopAnalysis()
-
-    // 取得済みの全トラックを停止して、カメラを確実に解放する。
-    streamRef.current?.getTracks().forEach((track) => track.stop())
-    streamRef.current = null
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-    }
-
-    if (isMountedRef.current) {
-      setStatus('idle')
-      setErrorMessage('')
-      setAnalysisErrorMessage('')
-      setAnalysisResult(null)
-    }
-  }
-
-  const startCamera = async () => {
-    setStatus('requesting')
-    setErrorMessage('')
-    setAnalysisErrorMessage('')
-    setAnalysisResult(null)
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setStatus('error')
-      setErrorMessage(
-        'このブラウザではカメラを利用できません。ChromeまたはEdgeのlocalhostでお試しください。',
-      )
-      return
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-        audio: false,
-      })
-
-      // 権限確認中にページを離れた場合は、受け取った映像をすぐに停止する。
-      if (!isMountedRef.current) {
-        stream.getTracks().forEach((track) => track.stop())
-        return
-      }
-
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-      }
-      setStatus('active')
-    } catch (error) {
-      if (isMountedRef.current) {
-        setStatus('error')
-        setErrorMessage(getCameraErrorMessage(error))
-      }
-    }
-  }
+  const [page, setPage] = useState<AppPage>(getPageFromPath)
+  const [settings, setSettings] = useState<SessionSettings>(DEFAULT_SETTINGS)
 
   useEffect(() => {
-    isMountedRef.current = true
-    let initializationCancelled = false
+    // ブラウザの戻る・進む操作でも表示ページをURLと同期する。
+    const handlePopState = () => setPage(getPageFromPath())
+    window.addEventListener('popstate', handlePopState)
 
-    const initializePoseLandmarker = async () => {
-      setModelStatus('loading')
-      setModelErrorMessage('')
-
-      try {
-        // MediaPipeのWasm実行環境とPose Landmarkerモデルを動画解析モードで初期化する。
-        const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_PATH)
-        const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: POSE_LANDMARKER_MODEL_PATH,
-            delegate: 'CPU',
-          },
-          runningMode: 'VIDEO',
-          numPoses: 4,
-          minPoseDetectionConfidence: 0.5,
-          minPosePresenceConfidence: 0.5,
-          minTrackingConfidence: 0.5,
-        })
-
-        if (initializationCancelled) {
-          poseLandmarker.close()
-          return
-        }
-
-        poseLandmarkerRef.current = poseLandmarker
-        setModelStatus('ready')
-      } catch (error) {
-        if (!initializationCancelled) {
-          setModelStatus('error')
-          setModelErrorMessage(getModelErrorMessage(error))
-        }
-      }
+    const availablePaths = ['/start', '/measurement', '/result']
+    if (!availablePaths.includes(window.location.pathname)) {
+      window.history.replaceState(null, '', '/start')
     }
 
-    void initializePoseLandmarker()
-
-    // ページ破棄時にも解析予約とカメラトラックを停止する。
-    const releaseCamera = () => {
-      stopAnalysis()
-      streamRef.current?.getTracks().forEach((track) => track.stop())
-      streamRef.current = null
-    }
-
-    window.addEventListener('pagehide', releaseCamera)
-
-    return () => {
-      initializationCancelled = true
-      isMountedRef.current = false
-      window.removeEventListener('pagehide', releaseCamera)
-      releaseCamera()
-      poseLandmarkerRef.current?.close()
-      poseLandmarkerRef.current = null
-    }
+    return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  useEffect(() => {
-    if (status !== 'active' || modelStatus !== 'ready') {
-      return
-    }
+  const handleStart = (nextSettings: SessionSettings) => {
+    setSettings(nextSettings)
+    window.history.pushState(null, '', '/measurement')
+    setPage('measurement')
+  }
 
-    let analysisCancelled = false
-    const analyzeFrame = () => {
-      const video = videoRef.current
-      const poseLandmarker = poseLandmarkerRef.current
+  const handleFinish = () => {
+    window.history.pushState(null, '', '/result')
+    setPage('result')
+  }
 
-      if (analysisCancelled || !video || !poseLandmarker || !streamRef.current) {
-        return
-      }
-
-      // video.currentTimeが進んだ場合だけ推論し、同じ映像フレームの重複解析を避ける。
-      if (
-        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
-        video.currentTime !== lastVideoTimeRef.current
-      ) {
-        lastVideoTimeRef.current = video.currentTime
-
-        try {
-          const result = poseLandmarker.detectForVideo(video, performance.now())
-          // 次回推論で内部結果が更新されても表示値が変わらないよう座標を複製する。
-          const people = result.landmarks.map((landmarks) =>
-            landmarks.map((landmark) => ({ ...landmark })),
-          )
-          setAnalysisResult({ detectedAt: performance.now(), people })
-        } catch (error) {
-          setAnalysisErrorMessage(getAnalysisErrorMessage(error))
-          return
-        }
-      }
-
-      animationFrameRef.current = window.requestAnimationFrame(analyzeFrame)
-    }
-
-    animationFrameRef.current = window.requestAnimationFrame(analyzeFrame)
-
-    return () => {
-      analysisCancelled = true
-      stopAnalysis()
-    }
-  }, [modelStatus, status])
-
-  const isActive = status === 'active'
-  const isRequesting = status === 'requesting'
+  const handleRestart = () => {
+    window.history.pushState(null, '', '/start')
+    setPage('start')
+  }
 
   return (
-    <main className="camera-page">
-      <header className="page-header">
-        <a className="brand" href="/" aria-label="Score Pomodoro ホーム">
-          <span className="brand-mark" aria-hidden="true">S</span>
-          <span>Score Pomodoro</span>
-        </a>
-        <div className="header-statuses">
-          <span className={`status model-status model-status--${modelStatus}`} role="status">
-            <span className="status-dot" aria-hidden="true" />
-            {modelStatusLabel[modelStatus]}
-          </span>
-          <span className={`status status--${status}`} role="status">
-            <span className="status-dot" aria-hidden="true" />
-            カメラ：{cameraStatusLabel[status]}
-          </span>
-        </div>
-      </header>
-
-      <section className="camera-demo" aria-labelledby="camera-title">
-        <div className="intro">
-          <p className="eyebrow">POSE ANALYSIS</p>
-          <h1 id="camera-title">姿勢ランドマークを解析</h1>
-          <p>
-            カメラ映像をMediaPipe Tasks Visionでリアルタイム解析し、
-            検出した人物と各ランドマークの座標を表示します。
-          </p>
-        </div>
-
-        <div className="workspace-grid">
-          <div className="camera-column">
-            <div className={`preview ${isActive ? 'preview--active' : ''}`}>
-          <video ref={videoRef} autoPlay muted playsInline aria-label="解析対象のカメラ映像" />
-          {!isActive && (
-            <div className="preview-placeholder">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M15 8.5V6.8A1.8 1.8 0 0 0 13.2 5H4.8A1.8 1.8 0 0 0 3 6.8v10.4A1.8 1.8 0 0 0 4.8 19h8.4a1.8 1.8 0 0 0 1.8-1.8v-1.7l4.2 2.6a1.2 1.2 0 0 0 1.8-1V6.9a1.2 1.2 0 0 0-1.8-1L15 8.5Z" />
-              </svg>
-              <strong>{isRequesting ? 'カメラに接続しています' : 'カメラは停止しています'}</strong>
-              <span>
-                {isRequesting
-                  ? 'ブラウザの確認画面で利用を許可してください'
-                  : '下のボタンからカメラを起動してください'}
-              </span>
-            </div>
-          )}
-            </div>
-
-            {errorMessage && (
-          <div className="error-message" role="alert">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 8v5m0 3h.01M10.3 3.8 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0Z" />
-            </svg>
-            <span>{errorMessage}</span>
-          </div>
-            )}
-
-            <div className="controls">
-          <button
-            className="button button--primary"
-            type="button"
-            onClick={startCamera}
-            disabled={isActive || isRequesting}
-          >
-            {isRequesting ? '接続中…' : 'カメラを起動'}
-          </button>
-          <button
-            className="button button--secondary"
-            type="button"
-            onClick={stopCamera}
-            disabled={!isActive}
-          >
-            カメラを停止
-          </button>
-            </div>
-
-            <p className="privacy-note">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 3 5 6v5c0 4.6 2.9 8.7 7 10 4.1-1.3 7-5.4 7-10V6l-7-3Z" />
-            <path d="m9.5 12 1.6 1.6 3.7-4" />
-          </svg>
-          カメラ映像と解析値はお使いのブラウザ内でのみ処理されます
-            </p>
-          </div>
-
-          <section className="analysis-panel" aria-labelledby="analysis-title">
-          <div className="analysis-header">
-            <div>
-              <p className="analysis-kicker">DEBUG OUTPUT</p>
-              <h2 id="analysis-title">解析結果</h2>
-            </div>
-            <span className={`model-badge model-badge--${modelStatus}`}>
-              <span aria-hidden="true" />
-              {modelStatusLabel[modelStatus]}
-            </span>
-          </div>
-
-          <div className="landmark-explanation">
-            <p>
-              <strong>ランドマーク番号の見方</strong>
-              表の「部位」列で各番号が表す身体の位置を確認できます。
-            </p>
-            <details>
-              <summary>0〜32の番号一覧を表示</summary>
-              <ol className="landmark-guide-list">
-                {POSE_LANDMARK_NAMES.map((name, index) => (
-                  <li key={name}>
-                    <span>{index}</span>
-                    {name}
-                  </li>
-                ))}
-              </ol>
-            </details>
-          </div>
-
-          {modelStatus === 'error' ? (
-            <div className="analysis-empty analysis-empty--error" role="alert">
-              <strong>モデルの読み込みに失敗しました</strong>
-              <span>{modelErrorMessage}</span>
-            </div>
-          ) : analysisErrorMessage ? (
-            <div className="analysis-empty analysis-empty--error" role="alert">
-              <strong>解析を停止しました</strong>
-              <span>{analysisErrorMessage}</span>
-            </div>
-          ) : !isActive ? (
-            <div className="analysis-empty">
-              <strong>解析待機中</strong>
-              <span>カメラを起動すると、ここにランドマークの解析値が表示されます。</span>
-            </div>
-          ) : modelStatus === 'loading' ? (
-            <div className="analysis-empty">
-              <span className="loading-spinner" aria-hidden="true" />
-              <strong>モデルを読み込んでいます</strong>
-              <span>読み込みが完了すると自動的に解析を開始します。</span>
-            </div>
-          ) : analysisResult === null ? (
-            <div className="analysis-empty">
-              <span className="loading-spinner" aria-hidden="true" />
-              <strong>最初の映像フレームを解析しています</strong>
-            </div>
-          ) : (
-            <div className="analysis-output">
-              <div className="detection-summary" aria-live="polite">
-                <span>検出した人数</span>
-                <strong>{analysisResult.people.length}人</strong>
-                <small>更新: {Math.round(analysisResult.detectedAt)} ms</small>
-              </div>
-
-              {analysisResult.people.length === 0 ? (
-                <div className="no-detection">
-                  <strong>検出なし</strong>
-                  <span>カメラに全身が映る位置へ移動してください。</span>
-                </div>
-              ) : (
-                <div className="people-list">
-                  {analysisResult.people.map((landmarks, personIndex) => (
-                    <details className="person-result" open key={personIndex}>
-                      <summary>
-                        <span>人物 {personIndex + 1}</span>
-                        <small>{landmarks.length}ランドマーク</small>
-                      </summary>
-                      <div className="landmark-table-wrap">
-                        <table className="landmark-table">
-                          <thead>
-                            <tr>
-                              <th scope="col">番号</th>
-                              <th scope="col">部位</th>
-                              <th scope="col">X</th>
-                              <th scope="col">Y</th>
-                              <th scope="col">Z</th>
-                              <th scope="col">visibility</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {landmarks.map((landmark, landmarkIndex) => (
-                              <tr key={landmarkIndex}>
-                                <th scope="row">{landmarkIndex}</th>
-                                <td className="landmark-name">
-                                  {POSE_LANDMARK_NAMES[landmarkIndex] ?? '不明'}
-                                </td>
-                                <td>{formatCoordinate(landmark.x)}</td>
-                                <td>{formatCoordinate(landmark.y)}</td>
-                                <td>{formatCoordinate(landmark.z)}</td>
-                                <td>{formatCoordinate(landmark.visibility)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </details>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          </section>
-        </div>
-      </section>
-    </main>
+    <div className="app-shell">
+      {page === 'start' && (
+        <StartPage initialSettings={settings} onStart={handleStart} />
+      )}
+      {page === 'measurement' && (
+        <MeasurementPage
+          elapsedMs={0}
+          onFinish={handleFinish}
+          originalScore={PREVIEW_ORIGINAL_SCORE}
+          scoreIncrement={PREVIEW_RESULT.totalScore}
+          status="measuring"
+          targetMinutes={settings.targetMinutes}
+          targetScore={settings.targetScore}
+        />
+      )}
+      {page === 'result' && (
+        <ResultPage
+          onRestart={handleRestart}
+          originalScore={PREVIEW_ORIGINAL_SCORE}
+          result={PREVIEW_RESULT}
+        />
+      )}
+    </div>
   )
 }
 

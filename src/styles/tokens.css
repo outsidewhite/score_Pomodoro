@@ -1,13 +1,24 @@
 :root {
-  /* Figma Variablesと対応させる共通デザイントークン。 */
-  --color-primary: #316552;
-  --color-success: #30a36b;
+  /* アプリ全体は深い青緑を軸にし、各機能の色をアクセントとして使う。 */
+  --color-primary: #176a73;
+  --color-primary-hover: #12545b;
+  --color-primary-soft: #e6f7f5;
+  --color-camera: #a9d5d8;
+  --color-camera-strong: #4e7477;
+  --color-camera-soft: #eef7f7;
+  --color-score: #b3d9c1;
+  --color-score-strong: #557663;
+  --color-score-soft: #eff7f2;
+  --color-timer: #dbc9ae;
+  --color-timer-strong: #7a6850;
+  --color-timer-soft: #f8f4ee;
+  --color-success: #237a4a;
   --color-danger: #b84848;
-  --color-text-strong: #20252c;
-  --color-text-muted: #69707a;
-  --color-border: #e3e5e8;
+  --color-text-strong: #18363b;
+  --color-text-muted: #60777a;
+  --color-border: #d8e7e5;
   --color-surface: #fff;
-  --color-background: #fafaf9;
+  --color-background: #f5faf9;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -16,9 +27,14 @@
   --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
+  --space-10: 40px;
 
   --radius-md: 10px;
   --radius-lg: 18px;
+  --radius-xl: 24px;
+
+  --shadow-sm: 0 8px 24px rgb(24 54 59 / 7%);
+  --shadow-md: 0 18px 48px rgb(24 54 59 / 10%);
 
   /* 既存デモとの互換性を保つため、従来名も共通トークンへ接続する。 */
   --primary: var(--color-primary);

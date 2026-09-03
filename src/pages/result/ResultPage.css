@@ -1,7 +1,16 @@
 .result-page {
-  display: grid;
+  width: min(var(--app-content-max), 100%);
   min-height: 100svh;
-  padding: var(--space-8);
+  margin: 0 auto;
+  padding: 0 var(--app-page-gutter) var(--app-page-bottom-space);
+  box-sizing: border-box;
+  background: #fff;
+}
+
+.result-page__content {
+  display: grid;
+  min-height: calc(100svh - 108px);
+  padding-top: var(--space-8);
   box-sizing: border-box;
   place-items: center;
 }
@@ -33,6 +42,27 @@
   font-size: 72px;
 }
 
+.result-page__current-score {
+  display: grid;
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-score-soft);
+}
+
+.result-page__current-score span,
+.result-page__current-score small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.result-page__current-score strong {
+  margin: var(--space-1) 0;
+  color: var(--color-score-strong);
+  font-size: 32px;
+  font-variant-numeric: tabular-nums;
+}
+
 .result-page__details {
   display: grid;
   margin: var(--space-6) 0;
@@ -55,4 +85,14 @@
   margin: var(--space-1) 0 0;
   font-size: 24px;
   font-weight: 700;
+}
+
+@media (max-width: 680px) {
+  .result-page__content {
+    padding-top: var(--space-5);
+  }
+
+  .result-page__card {
+    padding: var(--space-5);
+  }
 }

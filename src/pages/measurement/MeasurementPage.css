@@ -1,41 +1,380 @@
 .measurement-page {
-  display: grid;
-  width: min(960px, 100%);
+  width: min(var(--app-content-max), 100%);
   min-height: 100svh;
   margin: 0 auto;
+  padding: 0 var(--app-page-gutter) var(--app-page-bottom-space);
+  box-sizing: border-box;
+  background: #fff;
+}
+
+/* 横3:2と左側の縦1:1を同時に維持する。 */
+.measurement-page__layout {
+  display: grid;
+  min-height: calc(100svh - 108px);
+  padding-top: var(--space-8);
+  grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+  gap: var(--app-panel-gap);
+  box-sizing: border-box;
+}
+
+.measurement-page__left-column {
+  display: grid;
+  min-width: 0;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: var(--app-panel-gap);
+}
+
+.measurement-panel {
+  overflow: hidden;
+  min-width: 0;
+  border: 1px solid var(--panel-color);
+  border-radius: var(--app-panel-radius);
+  background: var(--panel-color);
+}
+
+.measurement-panel--camera {
+  --panel-color: var(--color-camera);
+  --panel-strong: var(--color-camera-strong);
+  --panel-soft: var(--color-camera-soft);
+}
+
+.measurement-panel--timer {
+  --panel-color: var(--color-timer);
+  --panel-strong: var(--color-timer-strong);
+  --panel-soft: var(--color-timer-soft);
+}
+
+.measurement-panel--score {
+  --panel-color: var(--color-score);
+  --panel-strong: var(--color-score-strong);
+  --panel-soft: var(--color-score-soft);
+}
+
+/* カメラ映像と操作ボタンを3:2で配置する。 */
+.camera-panel__body {
+  display: grid;
+  height: 100%;
+  min-height: 250px;
+  padding: var(--space-5);
+  grid-template-columns: minmax(0, 3fr) minmax(180px, 2fr);
+  gap: var(--space-5);
+  box-sizing: border-box;
+}
+
+.camera-panel__preview {
+  position: relative;
+  overflow: hidden;
+  min-height: 180px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+.camera-panel__preview--hidden {
+  filter: saturate(0.25);
+  opacity: 0.72;
+}
+
+.camera-panel__placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  padding: var(--space-5);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.camera-panel__placeholder strong {
+  color: var(--color-text-strong);
+  font-size: 14px;
+}
+
+.camera-panel__placeholder small {
+  max-width: 260px;
+  margin-top: var(--space-2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.camera-panel__camera-icon {
+  position: relative;
+  width: 52px;
+  height: 38px;
+  margin-bottom: var(--space-4);
+  border: 3px solid var(--color-camera-strong);
+  border-radius: 10px;
+}
+
+.camera-panel__camera-icon::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border: 3px solid var(--color-camera-strong);
+  border-radius: 50%;
+  content: '';
+  transform: translate(-50%, -50%);
+}
+
+.camera-panel__camera-icon::after {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-camera-strong);
+  content: '';
+}
+
+.camera-panel__controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.camera-panel__controls .ui-button {
+  width: min(190px, 100%);
+}
+
+.timer-panel__body {
+  display: grid;
+  height: 100%;
+  min-height: 250px;
+  /* 左のログを2、右のタイマーを3の比率で固定する。 */
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+}
+
+.timer-panel__log {
+  padding: var(--space-5);
+  border-right: 1px solid rgb(24 54 59 / 16%);
+  background: #fff;
+}
+
+.timer-panel__log h3 {
+  margin: 0 0 var(--space-4);
+  color: var(--color-timer-strong);
+  font-size: 12px;
+}
+
+.timer-panel__log ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timer-panel__log li {
+  display: grid;
+  padding: var(--space-2) 0;
+  grid-template-columns: 48px 1fr;
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.timer-panel__log time {
+  color: var(--color-timer-strong);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-panel__log-placeholder {
+  opacity: 0.62;
+}
+
+.timer-panel__log-placeholder::before {
+  width: 7px;
+  height: 7px;
+  margin: 5px auto 0;
+  border-radius: 50%;
+  background: var(--color-border);
+  content: '';
+}
+
+.timer-panel__clock {
+  display: flex;
+  padding: var(--space-5);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.timer-panel__clock p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.timer-panel__clock strong {
+  margin: var(--space-1) 0 var(--space-5);
+  color: var(--color-text-strong);
+  font-size: clamp(32px, 4vw, 54px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+}
+
+.timer-panel__clock .ui-button {
+  background: var(--color-timer-strong);
+}
+
+.score-panel__body {
+  display: flex;
+  min-height: 100%;
   padding: var(--space-8);
   box-sizing: border-box;
-  align-content: center;
-  gap: var(--space-6);
+  flex-direction: column;
+  background: var(--color-score);
 }
 
-.measurement-page__header {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-6);
-}
-
-.measurement-page__header p {
-  margin: 0 0 var(--space-1);
-  color: var(--color-text-muted);
-  font-size: 13px;
-}
-
-.measurement-page__header strong {
-  color: var(--color-text-strong);
-  font-size: 28px;
-}
-
-.measurement-page__preview {
+.score-panel__current {
   display: grid;
-  aspect-ratio: 16 / 9;
-  place-items: center;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  color: var(--color-text-muted);
-  background: #eef0f2;
+  min-height: 260px;
+  place-content: center;
+  text-align: center;
 }
 
-.measurement-page > .ui-button {
-  justify-self: center;
+.score-panel__current span,
+.score-panel__target span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.score-panel__current strong {
+  color: var(--color-score-strong);
+  font-size: clamp(86px, 10vw, 144px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.08em;
+}
+
+.score-panel__current small {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+.score-panel__target {
+  padding: var(--space-5);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+.score-panel__target > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.score-panel__target strong {
+  color: var(--color-score-strong);
+  font-size: 24px;
+}
+
+.score-panel__progress {
+  overflow: hidden;
+  height: 8px;
+  margin-top: var(--space-3);
+  border-radius: 999px;
+  background: rgb(35 122 74 / 12%);
+}
+
+.score-panel__progress span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-score);
+}
+
+.score-panel__placeholder {
+  display: flex;
+  min-height: 140px;
+  margin-top: var(--space-5);
+  padding: var(--space-5);
+  align-items: center;
+  gap: var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  background: #fff;
+}
+
+.score-panel__placeholder > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--color-score-strong);
+  background: var(--color-score-soft);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.score-panel__placeholder strong {
+  color: var(--color-text-strong);
+  font-size: 14px;
+}
+
+.score-panel__placeholder p {
+  margin: var(--space-1) 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 980px) {
+  .measurement-page__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .measurement-page__left-column {
+    grid-template-rows: auto;
+  }
+
+  .measurement-panel--score {
+    min-height: 560px;
+  }
+}
+
+@media (max-width: 680px) {
+  .measurement-page {
+    padding: 0 var(--space-4) var(--space-5);
+  }
+
+  .measurement-page__layout {
+    padding-top: var(--space-5);
+    gap: var(--space-4);
+  }
+
+  .measurement-page__left-column {
+    gap: var(--space-4);
+  }
+
+  .camera-panel__body,
+  .timer-panel__body {
+    grid-template-columns: 1fr;
+  }
+
+  .camera-panel__controls {
+    padding-top: var(--space-2);
+  }
+
+  .timer-panel__log {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .score-panel__body {
+    padding: var(--space-5);
+  }
 }
