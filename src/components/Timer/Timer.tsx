@@ -1,24 +1,26 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type {
+  RunningTimerMode,
+  TimerDurations,
+  TimerLogEntry,
+  TimerMode,
+} from './timerTypes.ts'
 import './Timer.css'
-
-type TimerMode = 'away' | 'break' | 'focus'
-
-type RunningTimerMode = Exclude<TimerMode, 'away'>
-type TimerDurations = Record<RunningTimerMode, number>
-
-type TimerSnapshot = {
-  durationsMs: TimerDurations
-  totalWorkMs: number
-}
 
 type TimerProps = {
   disabled?: boolean
   initialElapsedMs?: number
-  onExit: (snapshot: TimerSnapshot) => void
+  onClockUpdate?: (currentTimeMs: number) => void
+  onExit: () => void
+  onLogEntry?: (entry: TimerLogEntry) => void
   targetMinutes?: number
 }
 
 const BREAK_LIMIT_MS = 10 * 60 * 1_000
+
+function truncateToWholeSeconds(durationMs: number) {
+  return Math.floor(Math.max(0, durationMs) / 1_000) * 1_000
+}
 
 function formatElapsedTime(elapsedMs: number) {
   const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1_000))
@@ -67,43 +69,73 @@ function MoonIcon() {
 export function Timer({
   disabled = false,
   initialElapsedMs = 0,
+  onClockUpdate,
   onExit,
+  onLogEntry,
   targetMinutes,
 }: TimerProps) {
   // 集中と休憩を個別に保持し、表示時に作業時間として合計する。
   const initialDurations: TimerDurations = {
     break: 0,
-    focus: Math.max(0, initialElapsedMs),
+    focus: truncateToWholeSeconds(initialElapsedMs),
   }
   const durationsRef = useRef<TimerDurations>(initialDurations)
   const breakStartedAtDurationRef = useRef(0)
+  const logIdRef = useRef(0)
   const wasRunningBeforeExitRef = useRef<boolean | null>(null)
   const cancelExitButtonRef = useRef<HTMLButtonElement>(null)
   const [activeStartedAt, setActiveStartedAt] = useState<number | null>(null)
   const [durations, setDurations] = useState<TimerDurations>(initialDurations)
   const [displayNow, setDisplayNow] = useState(0)
+  const [hasSessionStarted, setHasSessionStarted] = useState(false)
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
   const [mode, setMode] = useState<RunningTimerMode>('focus')
 
+  // メインタイマーとログへ、同じ現在時刻を同時に反映する。
+  const syncClock = useCallback(
+    (now: number) => {
+      setDisplayNow(now)
+      onClockUpdate?.(now)
+    },
+    [onClockUpdate],
+  )
+
+  // 状態変更時の開始時刻とモードを、一意なログとして親へ通知する。
+  const emitLog = useCallback(
+    (logMode: TimerMode, startedAt: number) => {
+      logIdRef.current += 1
+      onLogEntry?.({
+        endedAt: null,
+        id: logIdRef.current,
+        mode: logMode,
+        startedAt,
+      })
+    },
+    [onLogEntry],
+  )
+
   useEffect(() => {
-    if (!isRunning) {
+    if (!hasSessionStarted) {
       return
     }
 
-    // 表示更新の回数ではなく開始時刻との差から経過時間を算出する。
-    const timerId = window.setInterval(() => setDisplayNow(Date.now()), 250)
+    // 1本のクロックを共有し、停止中の離席ログも同じ周期で更新する。
+    const timerId = window.setInterval(() => syncClock(Date.now()), 250)
     return () => window.clearInterval(timerId)
-  }, [isRunning])
+  }, [hasSessionStarted, syncClock])
 
   const commitActiveTime = (now: number) => {
     if (activeStartedAt === null) {
       return
     }
 
-    const nextDurations = {
+    const nextDurations: TimerDurations = {
       ...durationsRef.current,
-      [mode]: durationsRef.current[mode] + Math.max(0, now - activeStartedAt),
+      // モード切替時に端数を捨て、次のログとメインタイマーの秒境界を揃える。
+      [mode]: truncateToWholeSeconds(
+        durationsRef.current[mode] + Math.max(0, now - activeStartedAt),
+      ),
     }
     durationsRef.current = nextDurations
     setDurations(nextDurations)
@@ -120,13 +152,16 @@ export function Timer({
       commitActiveTime(now)
       setActiveStartedAt(null)
       setIsRunning(false)
-      setDisplayNow(now)
+      syncClock(now)
+      emitLog('away', now)
       return
     }
 
+    setHasSessionStarted(true)
     setActiveStartedAt(now)
     setIsRunning(true)
-    setDisplayNow(now)
+    syncClock(now)
+    emitLog(mode, now)
   }
 
   const handleBreakToggle = () => {
@@ -143,18 +178,23 @@ export function Timer({
       breakStartedAtDurationRef.current = durationsRef.current.break
     }
     setActiveStartedAt(now)
-    setDisplayNow(now)
+    syncClock(now)
     setMode(nextMode)
+    emitLog(nextMode, now)
   }
 
   const handleExitRequest = () => {
     const now = Date.now()
     commitActiveTime(now)
+    if (isRunning) {
+      // 終了確認中もタイマーが止まるため、離席区間として記録する。
+      emitLog('away', now)
+    }
     wasRunningBeforeExitRef.current = isRunning
     setActiveStartedAt(null)
     setIsRunning(false)
     setIsExitDialogOpen(true)
-    setDisplayNow(now)
+    syncClock(now)
   }
 
   const handleExitCancel = () => {
@@ -169,17 +209,16 @@ export function Timer({
     setActiveStartedAt(wasRunning ? now : null)
     wasRunningBeforeExitRef.current = null
     setIsExitDialogOpen(false)
-    setDisplayNow(now)
+    syncClock(now)
+    if (wasRunning) {
+      emitLog(mode, now)
+    }
   }
 
   const handleExitConfirm = () => {
     setIsExitDialogOpen(false)
     wasRunningBeforeExitRef.current = null
-    onExit({
-      durationsMs: durationsRef.current,
-      totalWorkMs:
-        durationsRef.current.focus + durationsRef.current.break,
-    })
+    onExit()
   }
 
   useEffect(() => {
@@ -209,11 +248,13 @@ export function Timer({
       setIsRunning(false)
       // 10分経過後は休憩を解除し、次回の再生を集中モードから開始する。
       setMode('focus')
-      setDisplayNow(now)
+      syncClock(now)
+      // タイマー処理が遅延しても、ログ上の休憩は10分で確定する。
+      emitLog('away', activeStartedAt + remainingBreakMs)
     }, remainingBreakMs)
 
     return () => window.clearTimeout(breakLimitTimerId)
-  }, [activeStartedAt, durations.break, isRunning, mode])
+  }, [activeStartedAt, durations.break, emitLog, isRunning, mode, syncClock])
 
   useEffect(() => {
     if (!isExitDialogOpen) {

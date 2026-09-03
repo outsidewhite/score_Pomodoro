@@ -21,25 +21,6 @@
   --timer-border: var(--color-text-strong);
 }
 
-.session-timer__heading {
-  display: flex;
-  min-height: 22px;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  color: var(--timer-accent);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.session-timer__heading small {
-  padding: 3px 7px;
-  border-radius: 999px;
-  color: var(--color-text-muted);
-  background: rgb(255 255 255 / 64%);
-  font-size: 9px;
-}
-
 .session-timer__time {
   margin-top: var(--space-1);
   /* 集中・休憩・離席の状態を時刻の色で判別できるようにする。 */
@@ -150,17 +131,6 @@
   stroke: currentColor;
 }
 
-.session-timer__control-labels {
-  display: grid;
-  width: 200px;
-  margin-top: var(--space-2);
-  grid-template-columns: 48px 72px 48px;
-  gap: var(--space-4);
-  color: var(--color-text-muted);
-  font-size: 9px;
-  font-weight: 700;
-}
-
 .timer-dialog-backdrop {
   position: fixed;
   z-index: 100;
@@ -258,12 +228,6 @@
   .timer-control--small {
     width: 44px;
     height: 44px;
-  }
-
-  .session-timer__control-labels {
-    width: 178px;
-    grid-template-columns: 44px 66px 44px;
-    gap: var(--space-3);
   }
 
   .timer-dialog {
