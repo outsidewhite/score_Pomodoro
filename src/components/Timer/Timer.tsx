@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import './Timer.css'
 
-export type TimerMode = 'away' | 'break' | 'focus'
+type TimerMode = 'away' | 'break' | 'focus'
 
-type TimerDurations = Record<TimerMode, number>
+type RunningTimerMode = Exclude<TimerMode, 'away'>
+type TimerDurations = Record<RunningTimerMode, number>
 
-export type TimerSnapshot = {
+type TimerSnapshot = {
   durationsMs: TimerDurations
-  mode: TimerMode
   totalWorkMs: number
 }
 
@@ -15,14 +15,7 @@ type TimerProps = {
   disabled?: boolean
   initialElapsedMs?: number
   onExit: (snapshot: TimerSnapshot) => void
-  onModeChange?: (mode: TimerMode) => void
   targetMinutes?: number
-}
-
-const MODE_LABELS: Record<TimerMode, string> = {
-  away: '離席',
-  break: '休憩',
-  focus: '集中',
 }
 
 const BREAK_LIMIT_MS = 10 * 60 * 1_000
@@ -75,25 +68,23 @@ export function Timer({
   disabled = false,
   initialElapsedMs = 0,
   onExit,
-  onModeChange,
   targetMinutes,
 }: TimerProps) {
-  // モードごとの経過時間を分けて保持し、集中時間へ休憩を加算しない。
+  // 集中と休憩を個別に保持し、表示時に作業時間として合計する。
   const initialDurations: TimerDurations = {
-    away: 0,
     break: 0,
     focus: Math.max(0, initialElapsedMs),
   }
   const durationsRef = useRef<TimerDurations>(initialDurations)
   const breakStartedAtDurationRef = useRef(0)
-  const beforeExitRef = useRef<{ isRunning: boolean; mode: TimerMode } | null>(null)
+  const wasRunningBeforeExitRef = useRef<boolean | null>(null)
   const cancelExitButtonRef = useRef<HTMLButtonElement>(null)
   const [activeStartedAt, setActiveStartedAt] = useState<number | null>(null)
   const [durations, setDurations] = useState<TimerDurations>(initialDurations)
   const [displayNow, setDisplayNow] = useState(0)
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
-  const [mode, setMode] = useState<TimerMode>('focus')
+  const [mode, setMode] = useState<RunningTimerMode>('focus')
 
   useEffect(() => {
     if (!isRunning) {
@@ -107,7 +98,7 @@ export function Timer({
 
   const commitActiveTime = (now: number) => {
     if (activeStartedAt === null) {
-      return durationsRef.current
+      return
     }
 
     const nextDurations = {
@@ -116,24 +107,6 @@ export function Timer({
     }
     durationsRef.current = nextDurations
     setDurations(nextDurations)
-    return nextDurations
-  }
-
-  const changeMode = (nextMode: TimerMode) => {
-    if (nextMode === mode) {
-      return
-    }
-
-    const now = Date.now()
-    commitActiveTime(now)
-    if (nextMode === 'break') {
-      // 休憩へ入るたびに、10分制限の起点を更新する。
-      breakStartedAtDurationRef.current = durationsRef.current.break
-    }
-    setActiveStartedAt(isRunning ? now : null)
-    setDisplayNow(now)
-    setMode(nextMode)
-    onModeChange?.(isRunning ? nextMode : 'away')
   }
 
   const handlePlayToggle = () => {
@@ -148,64 +121,62 @@ export function Timer({
       setActiveStartedAt(null)
       setIsRunning(false)
       setDisplayNow(now)
-      onModeChange?.('away')
       return
     }
 
-    // 自動停止後に休憩を再開する場合は、新しい10分間として計測する。
-    if (mode === 'break') {
-      breakStartedAtDurationRef.current = durationsRef.current.break
-    }
     setActiveStartedAt(now)
     setIsRunning(true)
     setDisplayNow(now)
-    onModeChange?.(mode)
   }
 
   const handleBreakToggle = () => {
     // 離席中は休憩・集中の内部モードを変更しない。
-    if (!isRunning || mode === 'away') {
+    if (!isRunning) {
       return
     }
 
-    changeMode(mode === 'break' ? 'focus' : 'break')
+    const now = Date.now()
+    const nextMode: RunningTimerMode = mode === 'break' ? 'focus' : 'break'
+    commitActiveTime(now)
+    if (nextMode === 'break') {
+      // 休憩へ入るたびに、10分制限の起点を更新する。
+      breakStartedAtDurationRef.current = durationsRef.current.break
+    }
+    setActiveStartedAt(now)
+    setDisplayNow(now)
+    setMode(nextMode)
   }
 
   const handleExitRequest = () => {
     const now = Date.now()
     commitActiveTime(now)
-    beforeExitRef.current = { isRunning, mode }
+    wasRunningBeforeExitRef.current = isRunning
     setActiveStartedAt(null)
     setIsRunning(false)
-    setMode('away')
-    onModeChange?.('away')
     setIsExitDialogOpen(true)
     setDisplayNow(now)
   }
 
   const handleExitCancel = () => {
-    const previousState = beforeExitRef.current
-    if (!previousState) {
+    const wasRunning = wasRunningBeforeExitRef.current
+    if (wasRunning === null) {
       setIsExitDialogOpen(false)
       return
     }
 
     const now = Date.now()
-    setMode(previousState.mode)
-    setIsRunning(previousState.isRunning)
-    setActiveStartedAt(previousState.isRunning ? now : null)
-    beforeExitRef.current = null
+    setIsRunning(wasRunning)
+    setActiveStartedAt(wasRunning ? now : null)
+    wasRunningBeforeExitRef.current = null
     setIsExitDialogOpen(false)
     setDisplayNow(now)
-    onModeChange?.(previousState.isRunning ? previousState.mode : 'away')
   }
 
   const handleExitConfirm = () => {
     setIsExitDialogOpen(false)
-    beforeExitRef.current = null
+    wasRunningBeforeExitRef.current = null
     onExit({
       durationsMs: durationsRef.current,
-      mode: 'away',
       totalWorkMs:
         durationsRef.current.focus + durationsRef.current.break,
     })
@@ -239,11 +210,10 @@ export function Timer({
       // 10分経過後は休憩を解除し、次回の再生を集中モードから開始する。
       setMode('focus')
       setDisplayNow(now)
-      onModeChange?.('away')
     }, remainingBreakMs)
 
     return () => window.clearTimeout(breakLimitTimerId)
-  }, [activeStartedAt, durations.break, isRunning, mode, onModeChange])
+  }, [activeStartedAt, durations.break, isRunning, mode])
 
   useEffect(() => {
     if (!isExitDialogOpen) {
@@ -264,7 +234,7 @@ export function Timer({
 
   // 休憩時間も作業時間として扱い、離席時間だけを合計から除外する。
   const activeWorkMs =
-    isRunning && activeStartedAt !== null && mode !== 'away'
+    isRunning && activeStartedAt !== null
       ? Math.max(0, displayNow - activeStartedAt)
       : 0
   const totalWorkMs = durations.focus + durations.break + activeWorkMs
@@ -273,11 +243,6 @@ export function Timer({
 
   return (
     <div className={`session-timer session-timer--${effectiveMode}`}>
-      <div className="session-timer__heading">
-        <span>{MODE_LABELS[effectiveMode]}</span>
-        {!isRunning && <small>停止中</small>}
-      </div>
-
       <strong className="session-timer__time" aria-live="polite">
         {formatElapsedTime(totalWorkMs)}
       </strong>
@@ -303,7 +268,7 @@ export function Timer({
           aria-label={isRunning ? 'タイマーを停止する' : 'タイマーを開始する'}
           aria-pressed={isRunning}
           onClick={handlePlayToggle}
-          disabled={disabled || mode === 'away' || (isRunning && mode === 'break')}
+          disabled={disabled || (isRunning && mode === 'break')}
         >
           {isRunning ? <StopIcon /> : <PlayIcon />}
         </button>
@@ -314,16 +279,10 @@ export function Timer({
           aria-label={mode === 'break' ? '集中に戻る' : '休憩に入る'}
           aria-pressed={effectiveMode === 'break'}
           onClick={handleBreakToggle}
-          disabled={disabled || !isRunning || mode === 'away'}
+          disabled={disabled || !isRunning}
         >
           <MoonIcon />
         </button>
-      </div>
-
-      <div className="session-timer__control-labels" aria-hidden="true">
-        <span>退出</span>
-        <span>{isRunning ? '停止' : '再生'}</span>
-        <span>{mode === 'break' ? '集中' : '休憩'}</span>
       </div>
 
       {isExitDialogOpen && (
