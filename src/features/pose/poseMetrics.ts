@@ -7,6 +7,7 @@ import type {
 
 const SHOULDER_INDICES = [11, 12] as const
 const HIP_INDICES = [23, 24] as const
+const PRESENCE_INDICES = [11, 12] as const
 const STABILITY_INDICES = [11, 12, 23, 24] as const
 
 function clampUnit(value: number) {
@@ -63,7 +64,7 @@ function calculatePosture(frames: PoseFrame[], maxTilt: number) {
 
 function calculatePresence(frames: PoseFrame[]) {
   const visibilityValues = frames.flatMap(({ landmarks }) =>
-    STABILITY_INDICES.flatMap((index) => {
+    PRESENCE_INDICES.flatMap((index) => {
       const landmark = getLandmark(landmarks, index)
 
       if (!landmark) {
