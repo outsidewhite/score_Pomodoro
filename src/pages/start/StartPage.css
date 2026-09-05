@@ -1,31 +1,280 @@
 .start-page {
-  display: grid;
+  width: min(var(--app-content-max), 100%);
   min-height: 100svh;
-  padding: var(--space-8);
+  margin: 0 auto;
+  padding: 0 var(--app-page-gutter) var(--app-page-bottom-space);
   box-sizing: border-box;
-  place-items: center;
+  background: #fff;
 }
 
-.start-page__content {
-  width: min(560px, 100%);
-  color: var(--color-text-muted);
+.start-page__form {
+  display: flex;
+  min-height: calc(100svh - 108px);
+  padding-top: clamp(40px, 7vh, 80px);
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: center;
+}
+
+.start-page__intro {
   text-align: center;
 }
 
-.start-page__content h1 {
+.start-page__intro p {
+  margin: 0 0 var(--space-3);
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.start-page__intro h1 {
   margin: 0;
   color: var(--color-text-strong);
+  font-size: clamp(26px, 3vw, 40px);
+  letter-spacing: -0.04em;
 }
 
-.start-page__content > p:not(.start-page__eyebrow) {
-  margin: var(--space-4) 0 var(--space-6);
-  line-height: 1.8;
+.start-page__intro > span {
+  display: block;
+  margin-top: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 14px;
 }
 
-.start-page__eyebrow {
-  margin: 0 0 var(--space-2);
-  color: var(--color-primary);
-  font-size: 12px;
+/* 計測画面の2色をそのまま設定カードへ引き継ぐ。 */
+.start-page__settings {
+  display: grid;
+  width: min(920px, 100%);
+  margin-top: clamp(32px, 6vh, 64px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--app-panel-gap);
+}
+
+.setting-card {
+  min-width: 0;
+  padding: clamp(24px, 3vw, 40px);
+  border: 1px solid var(--panel-color);
+  border-radius: var(--app-panel-radius);
+  background: var(--panel-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.setting-card--time {
+  --panel-color: var(--color-timer);
+  --panel-strong: var(--color-timer-strong);
+  --panel-soft: var(--color-timer-soft);
+}
+
+.setting-card--score {
+  --panel-color: var(--color-score);
+  --panel-strong: var(--color-score-strong);
+  --panel-soft: var(--color-score-soft);
+}
+
+.setting-card__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.setting-card__heading p,
+.setting-card__heading h2 {
+  margin: 0;
+}
+
+.setting-card__heading p {
+  margin-bottom: 3px;
+  color: var(--panel-strong);
+  font-size: 9px;
   font-weight: 800;
+  letter-spacing: 0.15em;
+}
+
+.setting-card__heading h2 {
+  color: var(--color-text-strong);
+  font-size: 18px;
+}
+
+.setting-card__icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-md);
+  color: var(--panel-strong);
+  background: #fff;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.setting-card__icon--clock {
+  position: relative;
+}
+
+.setting-card__icon--clock::before {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--panel-strong);
+  border-radius: 50%;
+  content: '';
+}
+
+.setting-card__icon--clock::after {
+  position: absolute;
+  top: 14px;
+  left: 22px;
+  width: 6px;
+  height: 7px;
+  border-bottom: 2px solid var(--panel-strong);
+  border-left: 2px solid var(--panel-strong);
+  content: '';
+}
+
+.setting-card__control {
+  display: grid;
+  margin-top: var(--space-8);
+  padding: var(--space-5);
+  align-items: center;
+  grid-template-columns: 44px 1fr 44px;
+  gap: var(--space-3);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+.setting-card__control > button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  color: var(--panel-strong);
+  background: var(--panel-soft);
+  font-size: 22px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.setting-card__control > button:not(:disabled):hover {
+  background: var(--panel-color);
+  transform: scale(1.05);
+}
+
+.setting-card__control > button:focus-visible,
+.setting-card__control input:focus-visible {
+  outline: 3px solid rgb(23 106 115 / 24%);
+  outline-offset: 2px;
+}
+
+.setting-card__control > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.setting-card__control label {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.setting-card__control input {
+  width: 3ch;
+  padding: 0;
+  border: 0;
+  color: var(--panel-strong);
+  background: transparent;
+  font-size: clamp(44px, 5vw, 62px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: right;
+  appearance: textfield;
+}
+
+.setting-card__control input::-webkit-inner-spin-button,
+.setting-card__control input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.setting-card__control small {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.start-page__action {
+  display: flex;
+  margin-top: clamp(32px, 5vh, 52px);
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.start-page__action .ui-button {
+  min-width: 220px;
+  padding: 16px var(--space-8);
+  border-radius: 999px;
+  box-shadow: 0 12px 28px rgb(23 106 115 / 20%);
+  font-size: 15px;
   letter-spacing: 0.16em;
+}
+
+.start-page__action > span {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.sr-only {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  margin: -1px;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .start-page__form {
+    padding-top: var(--space-8);
+  }
+
+  .start-page__settings {
+    margin-top: var(--space-8);
+    grid-template-columns: 1fr;
+  }
+
+  .setting-card {
+    padding: var(--space-5);
+  }
+
+  .setting-card__control {
+    margin-top: var(--space-5);
+  }
+}
+
+@media (max-width: 440px) {
+  .start-page__intro > span {
+    font-size: 12px;
+    line-height: 1.7;
+  }
+
+  .setting-card__control {
+    padding: var(--space-4);
+    grid-template-columns: 40px 1fr 40px;
+    gap: var(--space-2);
+  }
+
+  .setting-card__control > button {
+    width: 40px;
+    height: 40px;
+  }
 }

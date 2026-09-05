@@ -1,0 +1,72 @@
+.session-log {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  padding: var(--space-5);
+  overflow-y: auto;
+  border-right: 1px solid rgb(24 54 59 / 16%);
+  box-sizing: border-box;
+  background: #fff;
+  /* ログが増えてもパネル外へ伸ばさず、この領域内だけをスクロールする。 */
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+
+.session-log h3 {
+  margin: 0 0 var(--space-4);
+  color: var(--color-timer-strong);
+  font-size: 12px;
+}
+
+.session-log ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session-log__entry {
+  --log-color: var(--color-text-muted);
+  display: grid;
+  padding: var(--space-2) 0;
+  align-items: center;
+  grid-template-columns: 48px 1fr;
+  gap: var(--space-3);
+  color: var(--log-color);
+  font-size: 12px;
+}
+
+.session-log__entry--focus {
+  --log-color: var(--color-success);
+}
+
+.session-log__entry--break {
+  --log-color: #3f8bc5;
+}
+
+.session-log__entry--away {
+  --log-color: #9a9a9a;
+}
+
+.session-log__entry time {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.session-log__entry span {
+  font-weight: 700;
+}
+
+.session-log__empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.6;
+  opacity: 0.62;
+}
+
+@media (max-width: 760px) {
+  .session-log {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+}

@@ -9,95 +9,35 @@ import { calculateAverageFocusScore, calculateScore } from './features/scoring/c
 import type { PoseFrame } from './features/pose/poseTypes.ts'
 import './App.css'
 
-type AnalysisResult = {
-  detectedAt: number
-  people: NormalizedLandmark[][]
+type AppPage = 'measurement' | 'result' | 'start'
+
+const DEFAULT_SETTINGS: SessionSettings = {
+  targetMinutes: 25,
+  targetScore: 80,
 }
 
-const MEDIAPIPE_WASM_PATH =
-  'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm'
-const POSE_LANDMARKER_MODEL_PATH =
-  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task'
+// バックエンド接続前に加算表示を確認するための元スコア。
+const PREVIEW_ORIGINAL_SCORE = 1_200
 
-// MediaPipe Pose Landmarkerが返す33点の番号と身体部位の対応表。
-const POSE_LANDMARK_NAMES = [
-  '鼻',
-  '左目（内側）',
-  '左目',
-  '左目（外側）',
-  '右目（内側）',
-  '右目',
-  '右目（外側）',
-  '左耳',
-  '右耳',
-  '口（左）',
-  '口（右）',
-  '左肩',
-  '右肩',
-  '左ひじ',
-  '右ひじ',
-  '左手首',
-  '右手首',
-  '左小指',
-  '右小指',
-  '左人差し指',
-  '右人差し指',
-  '左親指',
-  '右親指',
-  '左腰',
-  '右腰',
-  '左ひざ',
-  '右ひざ',
-  '左足首',
-  '右足首',
-  '左かかと',
-  '右かかと',
-  '左つま先',
-  '右つま先',
-] as const
-
-const cameraStatusLabel: Record<CameraStatus, string> = {
-  idle: '停止中',
-  requesting: '接続中',
-  active: '起動中',
-  error: 'エラー',
+// 結果画面のデザイン確認用データ。実計測との接続時に置き換える。
+const PREVIEW_RESULT: ScoreResult = {
+  measuredDurationMs: 25 * 60 * 1_000,
+  postureScore: 82,
+  presenceScore: 91,
+  stabilityScore: 76,
+  totalScore: 83,
 }
 
-const modelStatusLabel: Record<ModelStatus, string> = {
-  loading: 'モデル読込中',
-  ready: 'モデル準備完了',
-  error: 'モデルエラー',
-}
-
-function getCameraErrorMessage(error: unknown) {
-  if (!(error instanceof DOMException)) {
-    return 'カメラを起動できませんでした。時間をおいて再度お試しください。'
+function getPageFromPath(): AppPage {
+  if (window.location.pathname === '/measurement') {
+    return 'measurement'
   }
 
-  switch (error.name) {
-    case 'NotAllowedError':
-      return 'カメラの利用が許可されませんでした。ブラウザの設定からカメラを許可してください。'
-    case 'NotFoundError':
-      return '利用できるカメラが見つかりませんでした。カメラの接続を確認してください。'
-    case 'NotReadableError':
-      return 'カメラを使用できませんでした。他のアプリがカメラを使用していないか確認してください。'
-    default:
-      return 'カメラを起動できませんでした。ブラウザの設定やカメラの接続を確認してください。'
+  if (window.location.pathname === '/result') {
+    return 'result'
   }
-}
 
-function getModelErrorMessage(error: unknown) {
-  const detail = error instanceof Error ? `（${error.message}）` : ''
-  return `姿勢解析モデルを読み込めませんでした。ネットワーク接続を確認してページを再読み込みしてください。${detail}`
-}
-
-function getAnalysisErrorMessage(error: unknown) {
-  const detail = error instanceof Error ? `（${error.message}）` : ''
-  return `映像フレームの解析中にエラーが発生しました。カメラを停止して再度お試しください。${detail}`
-}
-
-function formatCoordinate(value: number) {
-  return Number.isFinite(value) ? value.toFixed(5) : '取得不可'
+  return 'start'
 }
 
 function App() {
@@ -198,62 +138,16 @@ function App() {
   }
 
   useEffect(() => {
-    isMountedRef.current = true
-    let initializationCancelled = false
+    // ブラウザの戻る・進む操作でも表示ページをURLと同期する。
+    const handlePopState = () => setPage(getPageFromPath())
+    window.addEventListener('popstate', handlePopState)
 
-    const initializePoseLandmarker = async () => {
-      setModelStatus('loading')
-      setModelErrorMessage('')
-
-      try {
-        // MediaPipeのWasm実行環境とPose Landmarkerモデルを動画解析モードで初期化する。
-        const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_PATH)
-        const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: POSE_LANDMARKER_MODEL_PATH,
-            delegate: 'CPU',
-          },
-          runningMode: 'VIDEO',
-          numPoses: 4,
-          minPoseDetectionConfidence: 0.5,
-          minPosePresenceConfidence: 0.5,
-          minTrackingConfidence: 0.5,
-        })
-
-        if (initializationCancelled) {
-          poseLandmarker.close()
-          return
-        }
-
-        poseLandmarkerRef.current = poseLandmarker
-        setModelStatus('ready')
-      } catch (error) {
-        if (!initializationCancelled) {
-          setModelStatus('error')
-          setModelErrorMessage(getModelErrorMessage(error))
-        }
-      }
+    const availablePaths = ['/start', '/measurement', '/result']
+    if (!availablePaths.includes(window.location.pathname)) {
+      window.history.replaceState(null, '', '/start')
     }
 
-    void initializePoseLandmarker()
-
-    // ページ破棄時にも解析予約とカメラトラックを停止する。
-    const releaseCamera = () => {
-      stopAnalysis()
-      streamRef.current?.getTracks().forEach((track) => track.stop())
-      streamRef.current = null
-    }
-
-    window.addEventListener('pagehide', releaseCamera)
-
-    return () => {
-      initializationCancelled = true
-      isMountedRef.current = false
-      window.removeEventListener('pagehide', releaseCamera)
-      releaseCamera()
-      poseLandmarkerRef.current?.close()
-      poseLandmarkerRef.current = null
-    }
+    return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
   useEffect(() => {
@@ -345,14 +239,15 @@ function App() {
 
     animationFrameRef.current = window.requestAnimationFrame(analyzeFrame)
 
-    return () => {
-      analysisCancelled = true
-      stopAnalysis()
-    }
-  }, [modelStatus, status])
+  const handleFinish = () => {
+    window.history.pushState(null, '', '/result')
+    setPage('result')
+  }
 
-  const isActive = status === 'active'
-  const isRequesting = status === 'requesting'
+  const handleRestart = () => {
+    window.history.pushState(null, '', '/start')
+    setPage('start')
+  }
 
   const focusSummary = useMemo(() => {
     if (!focusScore) {
