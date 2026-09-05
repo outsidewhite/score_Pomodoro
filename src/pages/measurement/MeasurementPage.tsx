@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
+import { SessionLog } from '../../components/Timer/SessionLog.tsx'
+import { Timer } from '../../components/Timer/Timer.tsx'
+import type { TimerLogEntry } from '../../components/Timer/timerTypes.ts'
 import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import type { MeasurementStatus } from '../../shared/types/measurement.ts'
@@ -12,14 +15,6 @@ type MeasurementPageProps = {
   status: MeasurementStatus
   targetMinutes?: number
   targetScore?: number
-}
-
-function formatElapsedTime(elapsedMs: number) {
-  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1_000))
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
 function formatScore(score: number) {
@@ -38,6 +33,29 @@ export function MeasurementPage({
   // 実際のカメラ制御を接続するまで、画面上の表示状態だけを管理する。
   const [isCameraVisible, setIsCameraVisible] = useState(true)
   const [isCameraRunning, setIsCameraRunning] = useState(false)
+  const [timerNow, setTimerNow] = useState(Date.now)
+  const [timerLogs, setTimerLogs] = useState<TimerLogEntry[]>([])
+  // Timerの単一クロックをログ表示にも渡し、秒の切り替わりを同期する。
+  const handleTimerClockUpdate = useCallback((currentTimeMs: number) => {
+    setTimerNow(currentTimeMs)
+  }, [])
+  // 新しいモードが始まった時刻で直前のログを確定する。
+  const handleTimerLog = useCallback((entry: TimerLogEntry) => {
+    setTimerLogs((currentLogs) => {
+      const nextLogs = [...currentLogs]
+      const previousEntry = nextLogs.at(-1)
+
+      if (previousEntry && previousEntry.endedAt === null) {
+        nextLogs[nextLogs.length - 1] = {
+          ...previousEntry,
+          endedAt: Math.max(previousEntry.startedAt, entry.startedAt),
+        }
+      }
+
+      nextLogs.push(entry)
+      return nextLogs
+    })
+  }, [])
   // 現在値は、計測開始前のスコアへバックエンドからの加算分を足して求める。
   const addedScore = scoreIncrement ?? 0
   const currentScore = originalScore + addedScore
@@ -97,25 +115,17 @@ export function MeasurementPage({
             aria-label="タイマー"
           >
             <div className="timer-panel__body">
-              <div className="timer-panel__log" aria-label="セッションログ">
-                <h3>セッションログ</h3>
-                <ol>
-                  <li>
-                    <time>00:00</time>
-                    <span>計測を開始しました</span>
-                  </li>
-                  <li className="timer-panel__log-placeholder">
-                    <span>新しいイベントがここに追加されます</span>
-                  </li>
-                </ol>
-              </div>
+              <SessionLog currentTimeMs={timerNow} entries={timerLogs} />
 
               <div className="timer-panel__clock">
-                <p>経過時間 / 目標 {targetMinutes}分</p>
-                <strong aria-live="polite">{formatElapsedTime(elapsedMs)}</strong>
-                <Button onClick={onFinish} disabled={status !== 'measuring'}>
-                  計測を終了
-                </Button>
+                <Timer
+                  disabled={status !== 'measuring'}
+                  initialElapsedMs={elapsedMs}
+                  onClockUpdate={handleTimerClockUpdate}
+                  onExit={onFinish}
+                  onLogEntry={handleTimerLog}
+                  targetMinutes={targetMinutes}
+                />
               </div>
             </div>
           </section>

@@ -1,8 +1,11 @@
 .measurement-page {
+  display: grid;
   width: min(var(--app-content-max), 100%);
-  min-height: 100svh;
+  height: 100svh;
   margin: 0 auto;
   padding: 0 var(--app-page-gutter) var(--app-page-bottom-space);
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
   box-sizing: border-box;
   background: #fff;
 }
@@ -10,7 +13,7 @@
 /* 横3:2と左側の縦1:1を同時に維持する。 */
 .measurement-page__layout {
   display: grid;
-  min-height: calc(100svh - 108px);
+  min-height: 0;
   padding-top: var(--space-8);
   grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
   gap: var(--app-panel-gap);
@@ -19,6 +22,7 @@
 
 .measurement-page__left-column {
   display: grid;
+  min-height: 0;
   min-width: 0;
   grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: var(--app-panel-gap);
@@ -26,6 +30,7 @@
 
 .measurement-panel {
   overflow: hidden;
+  min-height: 0;
   min-width: 0;
   border: 1px solid var(--panel-color);
   border-radius: var(--app-panel-radius);
@@ -34,27 +39,21 @@
 
 .measurement-panel--camera {
   --panel-color: var(--color-camera);
-  --panel-strong: var(--color-camera-strong);
-  --panel-soft: var(--color-camera-soft);
 }
 
 .measurement-panel--timer {
   --panel-color: var(--color-timer);
-  --panel-strong: var(--color-timer-strong);
-  --panel-soft: var(--color-timer-soft);
 }
 
 .measurement-panel--score {
   --panel-color: var(--color-score);
-  --panel-strong: var(--color-score-strong);
-  --panel-soft: var(--color-score-soft);
 }
 
 /* カメラ映像と操作ボタンを3:2で配置する。 */
 .camera-panel__body {
   display: grid;
   height: 100%;
-  min-height: 250px;
+  min-height: 0;
   padding: var(--space-5);
   grid-template-columns: minmax(0, 3fr) minmax(180px, 2fr);
   gap: var(--space-5);
@@ -146,82 +145,19 @@
 .timer-panel__body {
   display: grid;
   height: 100%;
-  min-height: 250px;
+  min-height: 0;
   /* 左のログを2、右のタイマーを3の比率で固定する。 */
   grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
 }
 
-.timer-panel__log {
-  padding: var(--space-5);
-  border-right: 1px solid rgb(24 54 59 / 16%);
-  background: #fff;
-}
-
-.timer-panel__log h3 {
-  margin: 0 0 var(--space-4);
-  color: var(--color-timer-strong);
-  font-size: 12px;
-}
-
-.timer-panel__log ol {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.timer-panel__log li {
-  display: grid;
-  padding: var(--space-2) 0;
-  grid-template-columns: 48px 1fr;
-  gap: var(--space-3);
-  color: var(--color-text-muted);
-  font-size: 12px;
-}
-
-.timer-panel__log time {
-  color: var(--color-timer-strong);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-
-.timer-panel__log-placeholder {
-  opacity: 0.62;
-}
-
-.timer-panel__log-placeholder::before {
-  width: 7px;
-  height: 7px;
-  margin: 5px auto 0;
-  border-radius: 50%;
-  background: var(--color-border);
-  content: '';
-}
-
 .timer-panel__clock {
-  display: flex;
-  padding: var(--space-5);
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.timer-panel__clock p {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: 12px;
-}
-
-.timer-panel__clock strong {
-  margin: var(--space-1) 0 var(--space-5);
-  color: var(--color-text-strong);
-  font-size: clamp(32px, 4vw, 54px);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.04em;
-}
-
-.timer-panel__clock .ui-button {
-  background: var(--color-timer-strong);
+.timer-panel__clock .session-timer {
+  min-height: 0;
 }
 
 .score-panel__body {
@@ -335,14 +271,7 @@
 @media (max-width: 980px) {
   .measurement-page__layout {
     grid-template-columns: 1fr;
-  }
-
-  .measurement-page__left-column {
-    grid-template-rows: auto;
-  }
-
-  .measurement-panel--score {
-    min-height: 560px;
+    grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
   }
 }
 
@@ -363,15 +292,15 @@
   .camera-panel__body,
   .timer-panel__body {
     grid-template-columns: 1fr;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+  }
+
+  .camera-panel__preview {
+    min-height: 0;
   }
 
   .camera-panel__controls {
     padding-top: var(--space-2);
-  }
-
-  .timer-panel__log {
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
   }
 
   .score-panel__body {
