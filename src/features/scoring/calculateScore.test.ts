@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { PoseFrame, PoseLandmark } from '../pose/poseTypes.ts'
-import { calculateAverageFocusScore, calculateScore } from './calculateScore.ts'
+import { calculateScore } from './calculateScore.ts'
 
 function createLandmarks(overrides: Partial<PoseLandmark> = {}): PoseLandmark[] {
   return Array.from({ length: 33 }, () => ({
@@ -71,16 +71,10 @@ test('重みがすべて0の場合は設定エラーにする', () => {
   )
 })
 
-test('3分ごとの平均スコアはサンプルの平均で算出される', () => {
-  const goodFrame = createFrame(0)
-  const badFrame = createTiltedFrame(1_000, 0.2)
-  const result = calculateAverageFocusScore(
-    [goodFrame, badFrame],
-    undefined,
-    { sampleIntervalMs: 1_000, evaluationWindowMs: 2_000 },
-  )
+test('3分間のフレームをまとめて最終スコアとして算出する', () => {
+  const frames = [createFrame(0), createTiltedFrame(90_000, 0.2), createFrame(180_000)]
+  const result = calculateScore(frames)
 
-  assert.equal(result.sampleCount, 2)
-  assert.equal(result.averageTotalScore, 80)
-  assert.equal(result.results.length, 2)
+  assert.equal(result.measuredDurationMs, 180_000)
+  assert.equal(result.totalScore, 60)
 })
