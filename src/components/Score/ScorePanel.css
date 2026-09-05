@@ -1,0 +1,90 @@
+.score-panel {
+  overflow: hidden;
+  min-height: 0;
+  min-width: 0;
+  border: 1px solid var(--color-score);
+  border-radius: var(--app-panel-radius);
+  background: var(--color-score);
+}
+
+.score-panel__body {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  padding: var(--space-8);
+  grid-template-rows: minmax(180px, 1fr) auto;
+  gap: var(--space-5);
+  box-sizing: border-box;
+}
+
+/* 推移表示を上側の主領域として確保し、今後のグラフ実装を受け入れられるようにする。 */
+.score-panel__display {
+  display: flex;
+  min-height: 180px;
+  padding: var(--space-5);
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  background: #fff;
+}
+
+.score-panel__display > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--color-score-strong);
+  background: var(--color-score-soft);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.score-panel__display strong {
+  color: var(--color-text-strong);
+  font-size: 14px;
+}
+
+.score-panel__display p {
+  margin: var(--space-1) 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.score-panel__total {
+  display: grid;
+  min-height: 220px;
+  place-content: center;
+  text-align: center;
+}
+
+.score-panel__total span {
+  margin-bottom: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.score-panel__total strong {
+  color: var(--color-score-strong);
+  font-size: clamp(72px, 9vw, 128px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.08em;
+}
+
+.score-panel__total small {
+  margin-top: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 680px) {
+  .score-panel__body {
+    padding: var(--space-5);
+  }
+}
