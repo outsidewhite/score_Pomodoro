@@ -2,7 +2,7 @@ import './ScorePanel.css'
 
 type ScorePanelProps = {
   analysisError?: string | null
-  analysisStatus?: 'loading' | 'ready' | 'error'
+  analysisStatus?: 'error' | 'loading' | 'paused' | 'ready'
   originalScore: number
   scoreIncrement: number | null
 }
@@ -19,6 +19,12 @@ export function ScorePanel({
 }: ScorePanelProps) {
   // 総合スコアは、計測開始前の値へ今回の加算分を足して表示する。
   const totalScore = originalScore + (scoreIncrement ?? 0)
+  const analysisTitle = {
+    error: '姿勢解析を停止しました',
+    loading: '姿勢解析を準備中…',
+    paused: 'タイマー停止中',
+    ready: '3分間の平均スコアを計測中',
+  }[analysisStatus]
 
   return (
     <section className="score-panel" aria-label="集中スコア">
@@ -26,12 +32,12 @@ export function ScorePanel({
         <div className="score-panel__display">
           <span aria-hidden="true">↗</span>
           <div>
-            <strong>
-              {analysisStatus === 'loading' ? '姿勢解析を準備中…' : '3分間の平均スコアを計測中'}
-            </strong>
+            <strong>{analysisTitle}</strong>
             <p>
               {analysisError ??
-                '途中の評価は表示せず、3分ごとに確定したスコアを加算します。'}
+                (analysisStatus === 'paused'
+                  ? '集中タイマーを開始するとスコア計測を始めます。'
+                  : '途中の評価は表示せず、3分ごとに確定したスコアを加算します。')}
             </p>
           </div>
         </div>

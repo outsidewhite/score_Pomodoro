@@ -13,6 +13,7 @@ type TimerProps = {
   onClockUpdate?: (currentTimeMs: number) => void
   onExit: () => void
   onLogEntry?: (entry: TimerLogEntry) => void
+  onModeChange?: (mode: TimerMode) => void
   targetMinutes?: number
 }
 
@@ -72,6 +73,7 @@ export function Timer({
   onClockUpdate,
   onExit,
   onLogEntry,
+  onModeChange,
   targetMinutes,
 }: TimerProps) {
   // 集中と休憩を個別に保持し、表示時に作業時間として合計する。
@@ -281,6 +283,11 @@ export function Timer({
   const totalWorkMs = durations.focus + durations.break + activeWorkMs
   // 停止中は離席と同じ表示・外部判定にし、再開先のモードだけ内部に保持する。
   const effectiveMode: TimerMode = isRunning ? mode : 'away'
+
+  useEffect(() => {
+    // 姿勢解析などの外部処理へ、実際に動作しているタイマーモードを通知する。
+    onModeChange?.(effectiveMode)
+  }, [effectiveMode, onModeChange])
 
   return (
     <div className={`session-timer session-timer--${effectiveMode}`}>

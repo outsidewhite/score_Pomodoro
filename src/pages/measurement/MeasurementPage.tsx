@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SessionLog } from '../../components/Timer/SessionLog.tsx'
 import { Timer } from '../../components/Timer/Timer.tsx'
-import type { TimerLogEntry } from '../../components/Timer/timerTypes.ts'
+import type { TimerLogEntry, TimerMode } from '../../components/Timer/timerTypes.ts'
 import { ScorePanel } from '../../components/Score/ScorePanel.tsx'
 import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
@@ -35,8 +35,9 @@ export function MeasurementPage({
   const videoRef = useRef<HTMLVideoElement>(null)
   const [timerNow, setTimerNow] = useState(Date.now)
   const [timerLogs, setTimerLogs] = useState<TimerLogEntry[]>([])
-  const [analysisStatus, setAnalysisStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [analysisStatus, setAnalysisStatus] = useState<'error' | 'loading' | 'paused' | 'ready'>('paused')
   const [analysisError, setAnalysisError] = useState<string | null>(null)
+  const [timerMode, setTimerMode] = useState<TimerMode>('away')
   // Timerの単一クロックをログ表示にも渡し、秒の切り替わりを同期する。
   const handleTimerClockUpdate = useCallback((currentTimeMs: number) => {
     setTimerNow(currentTimeMs)
@@ -66,6 +67,12 @@ export function MeasurementPage({
     setAnalysisStatus('error')
     setAnalysisError(message)
   }, [])
+  const handleTimerModeChange = useCallback((nextMode: TimerMode) => {
+    setTimerMode(nextMode)
+    setAnalysisError(null)
+    // 集中開始時だけ解析準備へ入り、それ以外では未確定の採点を停止状態として扱う。
+    setAnalysisStatus(nextMode === 'focus' ? 'loading' : 'paused')
+  }, [])
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
@@ -80,7 +87,7 @@ export function MeasurementPage({
   }, [cameraStream])
 
   usePoseScoring({
-    enabled: status === 'measuring',
+    enabled: status === 'measuring' && timerMode === 'focus',
     onError: handleAnalysisError,
     onReady: handleAnalysisReady,
     onResult: onScoreUpdate,
@@ -146,6 +153,7 @@ export function MeasurementPage({
                   onClockUpdate={handleTimerClockUpdate}
                   onExit={onFinish}
                   onLogEntry={handleTimerLog}
+                  onModeChange={handleTimerModeChange}
                   targetMinutes={targetMinutes}
                 />
               </div>
