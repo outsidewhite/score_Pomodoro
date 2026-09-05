@@ -39,10 +39,6 @@ export function ScorePanel({
         <div className="score-panel__total" aria-live="polite">
           <span>総合スコア</span>
           <strong>{formatScore(totalScore)}</strong>
-          <small>
-            {formatScore(originalScore)} ＋ {formatScore(scoreIncrement ?? 0)} ＝{' '}
-            {formatScore(totalScore)}
-          </small>
         </div>
       </div>
     </section>
