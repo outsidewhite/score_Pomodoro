@@ -1,40 +1,42 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { SessionLog } from '../../components/Timer/SessionLog.tsx'
 import { Timer } from '../../components/Timer/Timer.tsx'
 import type { TimerLogEntry } from '../../components/Timer/timerTypes.ts'
+import { ScorePanel } from '../../components/Score/ScorePanel.tsx'
 import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
+import { usePoseScoring } from '../../features/pose/usePoseScoring.ts'
+import type { ScoreResult } from '../../features/scoring/scoreTypes.ts'
 import type { MeasurementStatus } from '../../shared/types/measurement.ts'
 import './MeasurementPage.css'
 
 type MeasurementPageProps = {
+  cameraStream: MediaStream
   elapsedMs: number
   onFinish: () => void
+  onScoreUpdate: (result: ScoreResult) => void
   originalScore: number
   scoreIncrement: number | null
   status: MeasurementStatus
   targetMinutes?: number
-  targetScore?: number
-}
-
-function formatScore(score: number) {
-  return score.toLocaleString('ja-JP')
 }
 
 export function MeasurementPage({
+  cameraStream,
   elapsedMs,
   onFinish,
+  onScoreUpdate,
   originalScore,
   scoreIncrement,
   status,
   targetMinutes = 25,
-  targetScore = 80,
 }: MeasurementPageProps) {
-  // 実際のカメラ制御を接続するまで、画面上の表示状態だけを管理する。
-  const [isCameraVisible, setIsCameraVisible] = useState(true)
-  const [isCameraRunning, setIsCameraRunning] = useState(false)
+  const [isCameraBlurred, setIsCameraBlurred] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
   const [timerNow, setTimerNow] = useState(Date.now)
   const [timerLogs, setTimerLogs] = useState<TimerLogEntry[]>([])
+  const [analysisStatus, setAnalysisStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
   // Timerの単一クロックをログ表示にも渡し、秒の切り替わりを同期する。
   const handleTimerClockUpdate = useCallback((currentTimeMs: number) => {
     setTimerNow(currentTimeMs)
@@ -56,9 +58,34 @@ export function MeasurementPage({
       return nextLogs
     })
   }, [])
-  // 現在値は、計測開始前のスコアへバックエンドからの加算分を足して求める。
-  const addedScore = scoreIncrement ?? 0
-  const currentScore = originalScore + addedScore
+  const handleAnalysisReady = useCallback(() => {
+    setAnalysisStatus('ready')
+    setAnalysisError(null)
+  }, [])
+  const handleAnalysisError = useCallback((message: string) => {
+    setAnalysisStatus('error')
+    setAnalysisError(message)
+  }, [])
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    // START時に取得したストリームを表示する。ぼかし操作でもストリーム自体は停止しない。
+    video.srcObject = cameraStream
+    void video.play()
+
+    return () => {
+      video.srcObject = null
+    }
+  }, [cameraStream])
+
+  usePoseScoring({
+    enabled: status === 'measuring',
+    onError: handleAnalysisError,
+    onReady: handleAnalysisReady,
+    onResult: onScoreUpdate,
+    videoRef,
+  })
 
   return (
     <main className="measurement-page">
@@ -76,35 +103,30 @@ export function MeasurementPage({
           >
             <div className="camera-panel__body">
               <div
-                className={`camera-panel__preview ${!isCameraVisible ? 'camera-panel__preview--hidden' : ''}`}
+                className={`camera-panel__preview ${isCameraBlurred ? 'camera-panel__preview--blurred' : ''}`}
                 aria-label="カメラ映像表示領域"
               >
-                <div className="camera-panel__placeholder">
-                  <span className="camera-panel__camera-icon" aria-hidden="true" />
-                  <strong>
-                    {!isCameraVisible
-                      ? 'カメラ映像は非表示です'
-                      : isCameraRunning
-                        ? 'カメラ映像を表示します'
-                        : 'カメラは停止しています'}
-                  </strong>
-                  <small>映像コンポーネントは後からここへ接続できます</small>
-                </div>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                />
+                {isCameraBlurred && (
+                  <div className="camera-panel__blur-message">
+                    <strong>カメラ映像をぼかしています</strong>
+                    <small>計測は引き続き動作しています</small>
+                  </div>
+                )}
               </div>
 
               <div className="camera-panel__controls" aria-label="カメラ操作">
                 <Button
                   variant="secondary"
-                  aria-pressed={!isCameraVisible}
-                  onClick={() => setIsCameraVisible((visible) => !visible)}
+                  aria-pressed={isCameraBlurred}
+                  onClick={() => setIsCameraBlurred((blurred) => !blurred)}
                 >
-                  {isCameraVisible ? 'カメラ非表示' : 'カメラ表示'}
-                </Button>
-                <Button
-                  aria-pressed={isCameraRunning}
-                  onClick={() => setIsCameraRunning((running) => !running)}
-                >
-                  {isCameraRunning ? 'カメラ停止' : 'カメラ起動'}
+                  {isCameraBlurred ? 'ぼかしを解除' : 'カメラをぼかす'}
                 </Button>
               </div>
             </div>
@@ -131,39 +153,12 @@ export function MeasurementPage({
           </section>
         </div>
 
-        <section
-          className="measurement-panel measurement-panel--score"
-          aria-label="集中スコア"
-        >
-          <div className="score-panel__body">
-            <div className="score-panel__current" aria-live="polite">
-              <span>現在のスコア</span>
-              <strong>{formatScore(currentScore)}</strong>
-              <small>
-                元のスコア {formatScore(originalScore)} ＋ 加算{' '}
-                {scoreIncrement === null ? '—' : formatScore(scoreIncrement)}
-              </small>
-            </div>
-
-            <div className="score-panel__target">
-              <div>
-                <span>目標スコア</span>
-                <strong>{targetScore}</strong>
-              </div>
-              <div className="score-panel__progress" aria-hidden="true">
-                <span />
-              </div>
-            </div>
-
-            <div className="score-panel__placeholder">
-              <span aria-hidden="true">↗</span>
-              <div>
-                <strong>スコア表示エリア</strong>
-                <p>推移グラフと目標に応じた演出を、次の実装で追加します。</p>
-              </div>
-            </div>
-          </div>
-        </section>
+        <ScorePanel
+          analysisError={analysisError}
+          analysisStatus={analysisStatus}
+          originalScore={originalScore}
+          scoreIncrement={scoreIncrement}
+        />
       </div>
     </main>
   )

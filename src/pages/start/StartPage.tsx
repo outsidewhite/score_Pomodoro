@@ -5,18 +5,17 @@ import './StartPage.css'
 
 export type SessionSettings = {
   targetMinutes: number
-  targetScore: number
 }
 
 type StartPageProps = {
+  cameraError?: string | null
   initialSettings?: SessionSettings
   isPreparing?: boolean
-  onStart: (settings: SessionSettings) => void
+  onStart: (settings: SessionSettings) => void | Promise<void>
 }
 
 const DEFAULT_SETTINGS: SessionSettings = {
   targetMinutes: 25,
-  targetScore: 80,
 }
 
 function parseSettingValue(value: string) {
@@ -25,33 +24,26 @@ function parseSettingValue(value: string) {
 }
 
 export function StartPage({
+  cameraError = null,
   initialSettings = DEFAULT_SETTINGS,
   isPreparing = false,
   onStart,
 }: StartPageProps) {
   // 入力値へ独自の上限・下限を設けず、そのままセッション設定として扱う。
   const [targetMinutesInput, setTargetMinutesInput] = useState(String(initialSettings.targetMinutes))
-  const [targetScoreInput, setTargetScoreInput] = useState(String(initialSettings.targetScore))
   const targetMinutes = parseSettingValue(targetMinutesInput)
-  const targetScore = parseSettingValue(targetScoreInput)
 
   const updateTargetMinutes = (value: number) => {
     setTargetMinutesInput(String(value))
-  }
-
-  const updateTargetScore = (value: number) => {
-    setTargetScoreInput(String(value))
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const nextSettings = {
       targetMinutes,
-      targetScore,
     }
 
     setTargetMinutesInput(String(nextSettings.targetMinutes))
-    setTargetScoreInput(String(nextSettings.targetScore))
     onStart(nextSettings)
   }
 
@@ -63,10 +55,10 @@ export function StartPage({
         <div className="start-page__intro">
           <p>READY TO FOCUS?</p>
           <h1>集中セッションを始めましょう</h1>
-          <span>今日の目標を設定して、あなたの集中をスコアに残します。</span>
+          <span>作業時間を設定して、あなたの集中をスコアに残します。</span>
         </div>
 
-        {/* 計測画面と同じ機能色を使い、2つの目標を横並びで比較できるようにする。 */}
+        {/* 計測画面と同じ機能色を使い、時間設定をひと目で把握できるようにする。 */}
         <div className="start-page__settings">
           <section
             className="setting-card setting-card--time"
@@ -107,46 +99,6 @@ export function StartPage({
               </button>
             </div>
           </section>
-
-          <section
-            className="setting-card setting-card--score"
-            aria-labelledby="target-score-title"
-          >
-            <div className="setting-card__heading">
-              <span className="setting-card__icon setting-card__icon--score" aria-hidden="true">↗</span>
-              <div>
-                <p>FOCUS SCORE</p>
-                <h2 id="target-score-title">目標スコア</h2>
-              </div>
-            </div>
-
-            <div className="setting-card__control">
-              <button
-                type="button"
-                aria-label="目標スコアを1下げる"
-                onClick={() => updateTargetScore(targetScore - 1)}
-              >
-                −
-              </button>
-              <label>
-                <span className="sr-only">目標スコア</span>
-                <input
-                  type="number"
-                  step="any"
-                  value={targetScoreInput}
-                  onChange={(event) => setTargetScoreInput(event.target.value)}
-                />
-                <small>点</small>
-              </label>
-              <button
-                type="button"
-                aria-label="目標スコアを1上げる"
-                onClick={() => updateTargetScore(targetScore + 1)}
-              >
-                ＋
-              </button>
-            </div>
-          </section>
         </div>
 
         <div className="start-page__action">
@@ -154,6 +106,11 @@ export function StartPage({
             {isPreparing ? '準備中…' : 'START'}
           </Button>
           <span>カメラの準備後、タイマーがスタートします</span>
+          {cameraError && (
+            <p className="start-page__camera-error" role="alert">
+              {cameraError}
+            </p>
+          )}
         </div>
       </form>
     </main>

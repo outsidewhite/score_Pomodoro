@@ -45,9 +45,9 @@
 /* 計測画面の2色をそのまま設定カードへ引き継ぐ。 */
 .start-page__settings {
   display: grid;
-  width: min(920px, 100%);
+  width: min(450px, 100%);
   margin-top: clamp(32px, 6vh, 64px);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--app-panel-gap);
 }
 
@@ -64,12 +64,6 @@
   --panel-color: var(--color-timer);
   --panel-strong: var(--color-timer-strong);
   --panel-soft: var(--color-timer-soft);
-}
-
-.setting-card--score {
-  --panel-color: var(--color-score);
-  --panel-strong: var(--color-score-strong);
-  --panel-soft: var(--color-score-soft);
 }
 
 .setting-card__heading {
@@ -228,6 +222,16 @@
 .start-page__action > span {
   color: var(--color-text-muted);
   font-size: 11px;
+}
+
+.start-page__camera-error {
+  max-width: 520px;
+  margin: 0;
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+  text-align: center;
 }
 
 .sr-only {
