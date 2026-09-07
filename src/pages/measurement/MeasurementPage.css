@@ -28,6 +28,14 @@
   gap: var(--app-panel-gap);
 }
 
+.measurement-page__score-column {
+  display: grid;
+  min-height: 0;
+  min-width: 0;
+  grid-template-rows: minmax(150px, 2fr) minmax(0, 5fr);
+  gap: var(--app-panel-gap);
+}
+
 .measurement-panel {
   overflow: hidden;
   min-height: 0;
@@ -206,6 +214,10 @@
   }
 
   .measurement-page__left-column {
+    gap: var(--space-4);
+  }
+
+  .measurement-page__score-column {
     gap: var(--space-4);
   }
 

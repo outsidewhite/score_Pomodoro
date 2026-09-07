@@ -1,6 +1,8 @@
 import type { ScoreConfig } from './scoreTypes.ts'
 
 export const DEFAULT_SCORE_CONFIG: ScoreConfig = {
+  // 既存仕様に合わせ、41点以上を「良好」と判定する。
+  goodScoreThreshold: 41,
   // 正規化座標上で、この値以上の傾きを姿勢点0として扱う。
   maxTilt: 0.15,
   // 連続フレーム間で、この値以上の移動を安定性0として扱う。

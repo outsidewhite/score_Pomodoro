@@ -12,7 +12,7 @@ const WASM_PATH =
 const MODEL_PATH =
   'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task'
 const ANALYSIS_INTERVAL_MS = 200
-const SCORE_WINDOW_MS = 3 * 60 * 1_000
+const SCORE_WINDOW_MS = 60 * 1_000
 
 type PoseScoringOptions = {
   enabled: boolean
@@ -71,7 +71,7 @@ export function usePoseScoring({
 
           scoreWindowStartedAt ??= timestampMs
 
-          // 3分区間が完了するまでは評価を公開せず、完了時に平均スコアを一度だけ通知する。
+          // 1分区間が完了するまでは評価を公開せず、完了時に平均スコアを一度だけ通知する。
           if (timestampMs - scoreWindowStartedAt >= SCORE_WINDOW_MS) {
             onResult(calculateScore(frames))
             frames.length = 0

@@ -15,6 +15,13 @@ function getMeasuredDurationMs(frames: PoseFrame[]) {
   return Math.max(0, frames.at(-1)!.timestampMs - frames[0].timestampMs)
 }
 
+export function getEarnedScore(
+  focusScore: number,
+  goodScoreThreshold = DEFAULT_SCORE_CONFIG.goodScoreThreshold,
+) {
+  return focusScore >= goodScoreThreshold ? 3 : 2
+}
+
 export function calculateScore(
   frames: PoseFrame[],
   config: ScoreConfig = DEFAULT_SCORE_CONFIG,
@@ -38,11 +45,15 @@ export function calculateScore(
       metrics.stability * config.weights.stability) /
     weightTotal
 
+  const focusScore = toPercentage(total)
+
   return {
+    // 良好なら3点、それ以外でも継続分として2点を旅へ加算する。
+    earnedScore: getEarnedScore(focusScore, config.goodScoreThreshold),
+    focusScore,
     measuredDurationMs: getMeasuredDurationMs(frames),
     postureScore: toPercentage(metrics.posture),
     presenceScore: toPercentage(metrics.presence),
     stabilityScore: toPercentage(metrics.stability),
-    totalScore: toPercentage(total),
   }
 }

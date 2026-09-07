@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ScoreResult } from './features/scoring/scoreTypes.ts'
+import { createJourney } from './features/trip/createJourney.ts'
+import type { Journey } from './features/trip/types.ts'
 import { MeasurementPage } from './pages/measurement/MeasurementPage.tsx'
 import { ResultPage } from './pages/result/ResultPage.tsx'
 import {
@@ -18,11 +20,12 @@ const DEFAULT_SETTINGS: SessionSettings = {
 const INITIAL_SCORE = 0
 
 const EMPTY_RESULT: ScoreResult = {
+  earnedScore: 0,
+  focusScore: 0,
   measuredDurationMs: 0,
   postureScore: 0,
   presenceScore: 0,
   stabilityScore: 0,
-  totalScore: 0,
 }
 
 function getPageFromPath(): AppPage {
@@ -44,6 +47,7 @@ function App() {
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [isPreparingCamera, setIsPreparingCamera] = useState(false)
   const [scoreResult, setScoreResult] = useState<ScoreResult>(EMPTY_RESULT)
+  const [journey, setJourney] = useState<Journey>(() => createJourney())
   const cameraStreamRef = useRef<MediaStream | null>(null)
 
   // 計測終了後にカメラが動き続けないよう、保持中の全トラックをまとめて終了する。
@@ -106,6 +110,7 @@ function App() {
       cameraStreamRef.current = stream
       setCameraStream(stream)
       setScoreResult(EMPTY_RESULT)
+      setJourney(createJourney())
       setSettings(nextSettings)
       window.history.pushState(null, '', '/measurement')
       setPage('measurement')
@@ -131,12 +136,12 @@ function App() {
   }
 
   const handleScoreUpdate = useCallback((evaluation: ScoreResult) => {
-    // 完了した3分区間の平均スコアだけを、今回の獲得スコアへ加算する。
+    // 1分ごとの獲得点だけを累積し、集中評価の内訳は最新値へ更新する。
     setScoreResult((currentResult) => ({
       ...evaluation,
+      earnedScore: currentResult.earnedScore + evaluation.earnedScore,
       measuredDurationMs:
         currentResult.measuredDurationMs + evaluation.measuredDurationMs,
-      totalScore: currentResult.totalScore + evaluation.totalScore,
     }))
   }, [])
 
@@ -160,10 +165,11 @@ function App() {
         <MeasurementPage
           cameraStream={cameraStream}
           elapsedMs={0}
+          journey={journey}
           onFinish={handleFinish}
           onScoreUpdate={handleScoreUpdate}
           originalScore={INITIAL_SCORE}
-          scoreIncrement={scoreResult.totalScore}
+          scoreIncrement={scoreResult.earnedScore}
           status="measuring"
           targetMinutes={settings.targetMinutes}
         />

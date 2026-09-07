@@ -23,7 +23,7 @@ export function ScorePanel({
     error: '姿勢解析を停止しました',
     loading: '姿勢解析を準備中…',
     paused: 'タイマー停止中',
-    ready: '3分間の平均スコアを計測中',
+    ready: '1分間の平均スコアを計測中',
   }[analysisStatus]
 
   return (
@@ -37,7 +37,7 @@ export function ScorePanel({
               {analysisError ??
                 (analysisStatus === 'paused'
                   ? '集中タイマーを開始するとスコア計測を始めます。'
-                  : '途中の評価は表示せず、3分ごとに確定したスコアを加算します。')}
+                  : '1分ごとに判定し、良好なら3点、それ以外は2点を加算します。')}
             </p>
           </div>
         </div>

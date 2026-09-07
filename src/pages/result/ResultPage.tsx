@@ -11,7 +11,7 @@ type ResultPageProps = {
 
 export function ResultPage({ onRestart, originalScore, result }: ResultPageProps) {
   // バックエンドから返された今回分を、計測開始前のスコアへ加算する。
-  const currentScore = originalScore + result.totalScore
+  const currentScore = originalScore + result.earnedScore
 
   return (
     <main className="result-page">
@@ -20,17 +20,21 @@ export function ResultPage({ onRestart, originalScore, result }: ResultPageProps
         <section className="result-page__card" aria-labelledby="result-title">
           <p>MEASUREMENT RESULT</p>
           <h1 id="result-title">今回の加算スコア</h1>
-          <strong className="result-page__total">+{result.totalScore}</strong>
+          <strong className="result-page__total">+{result.earnedScore}</strong>
 
           <div className="result-page__current-score">
             <span>現在のスコア</span>
             <strong>{currentScore.toLocaleString('ja-JP')}</strong>
             <small>
-              {originalScore.toLocaleString('ja-JP')} ＋ {result.totalScore.toLocaleString('ja-JP')}
+              {originalScore.toLocaleString('ja-JP')} ＋ {result.earnedScore.toLocaleString('ja-JP')}
             </small>
           </div>
 
           <dl className="result-page__details">
+            <div>
+              <dt>集中評価</dt>
+              <dd>{result.focusScore}</dd>
+            </div>
             <div>
               <dt>姿勢</dt>
               <dd>{result.postureScore}</dd>

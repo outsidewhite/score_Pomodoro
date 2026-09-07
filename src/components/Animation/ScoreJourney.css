@@ -1,0 +1,135 @@
+.score-journey {
+  display: grid;
+  min-height: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--color-score);
+  border-radius: var(--app-panel-radius);
+  background: var(--color-score-soft);
+  box-sizing: border-box;
+}
+
+.score-journey__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.score-journey__header div {
+  display: grid;
+  gap: 2px;
+}
+
+.score-journey__header span {
+  color: var(--color-score-strong);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.score-journey__header strong {
+  font-size: 13px;
+}
+
+.score-journey__header small {
+  color: var(--color-score-strong);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.score-journey__scene {
+  position: relative;
+  overflow: hidden;
+  min-height: 72px;
+  margin-top: var(--space-3);
+  border-radius: var(--radius-md);
+  background: linear-gradient(#dff3f4 0 62%, #d7e8cf 62%);
+}
+
+.score-journey__sky,
+.score-journey__track {
+  position: absolute;
+  inset: 0;
+}
+
+.score-journey__cloud {
+  position: absolute;
+  width: 28px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 75%);
+}
+
+.score-journey__cloud--first {
+  top: 14px;
+  left: 18%;
+}
+
+.score-journey__cloud--second {
+  top: 25px;
+  right: 18%;
+  transform: scale(0.7);
+}
+
+.score-journey__track::before,
+.score-journey__track-progress {
+  position: absolute;
+  right: 18px;
+  bottom: 19px;
+  left: 18px;
+  height: 4px;
+  border-radius: 999px;
+  content: '';
+}
+
+.score-journey__track::before {
+  background: rgb(85 118 99 / 22%);
+}
+
+.score-journey__track-progress {
+  width: calc((100% - 36px) * var(--journey-progress));
+  background: var(--color-score-strong);
+  transition: width 700ms ease-out;
+}
+
+.score-journey__traveler {
+  position: absolute;
+  bottom: 11px;
+  left: calc(18px + (100% - 52px) * var(--journey-progress));
+  color: var(--color-primary);
+  font-size: 17px;
+  line-height: 1;
+  text-shadow: 0 2px 0 #fff;
+  transition: left 700ms ease-out;
+  animation: score-journey-arrive 700ms ease-out;
+}
+
+.score-journey__destination {
+  position: absolute;
+  right: 13px;
+  bottom: 18px;
+  color: var(--color-score-strong);
+  font-size: 22px;
+}
+
+.score-journey__caption {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  text-align: right;
+}
+
+@keyframes score-journey-arrive {
+  45% {
+    transform: translateY(-7px) scale(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .score-journey__track-progress,
+  .score-journey__traveler {
+    transition: none;
+    animation: none;
+  }
+}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ScoreJourney } from '../../components/Animation/ScoreJourney.tsx'
 import { SessionLog } from '../../components/Timer/SessionLog.tsx'
 import { Timer } from '../../components/Timer/Timer.tsx'
 import type { TimerLogEntry, TimerMode } from '../../components/Timer/timerTypes.ts'
@@ -7,12 +8,14 @@ import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import { usePoseScoring } from '../../features/pose/usePoseScoring.ts'
 import type { ScoreResult } from '../../features/scoring/scoreTypes.ts'
+import type { Journey } from '../../features/trip/types.ts'
 import type { MeasurementStatus } from '../../shared/types/measurement.ts'
 import './MeasurementPage.css'
 
 type MeasurementPageProps = {
   cameraStream: MediaStream
   elapsedMs: number
+  journey: Journey
   onFinish: () => void
   onScoreUpdate: (result: ScoreResult) => void
   originalScore: number
@@ -24,6 +27,7 @@ type MeasurementPageProps = {
 export function MeasurementPage({
   cameraStream,
   elapsedMs,
+  journey,
   onFinish,
   onScoreUpdate,
   originalScore,
@@ -161,12 +165,18 @@ export function MeasurementPage({
           </section>
         </div>
 
-        <ScorePanel
-          analysisError={analysisError}
-          analysisStatus={analysisStatus}
-          originalScore={originalScore}
-          scoreIncrement={scoreIncrement}
-        />
+        <div className="measurement-page__score-column">
+          <ScoreJourney
+            journey={journey}
+            score={originalScore + (scoreIncrement ?? 0)}
+          />
+          <ScorePanel
+            analysisError={analysisError}
+            analysisStatus={analysisStatus}
+            originalScore={originalScore}
+            scoreIncrement={scoreIncrement}
+          />
+        </div>
       </div>
     </main>
   )
