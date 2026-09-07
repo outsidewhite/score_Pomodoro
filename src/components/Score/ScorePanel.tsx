@@ -1,8 +1,11 @@
+import { ScoreJourney } from '../Animation/ScoreJourney.tsx'
+import type { Journey } from '../../features/trip/types.ts'
 import './ScorePanel.css'
 
 type ScorePanelProps = {
   analysisError?: string | null
   analysisStatus?: 'error' | 'loading' | 'paused' | 'ready'
+  journey: Journey
   originalScore: number
   scoreIncrement: number | null
 }
@@ -14,6 +17,7 @@ function formatScore(score: number) {
 export function ScorePanel({
   analysisError = null,
   analysisStatus = 'ready',
+  journey,
   originalScore,
   scoreIncrement,
 }: ScorePanelProps) {
@@ -29,18 +33,8 @@ export function ScorePanel({
   return (
     <section className="score-panel" aria-label="集中スコア">
       <div className="score-panel__body">
-        <div className="score-panel__display">
-          <span aria-hidden="true">↗</span>
-          <div>
-            <strong>{analysisTitle}</strong>
-            <p>
-              {analysisError ??
-                (analysisStatus === 'paused'
-                  ? '集中タイマーを開始するとスコア計測を始めます。'
-                  : '1分ごとに判定し、良好なら3点、それ以外は2点を加算します。')}
-            </p>
-          </div>
-        </div>
+        {/* 旅の表示と総合スコアが常に同期するよう、同じ計算値を子コンポーネントへ渡す。 */}
+        <ScoreJourney journey={journey} score={totalScore} />
 
         <div className="score-panel__total" aria-live="polite">
           <span>総合スコア</span>

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ScoreJourney } from '../../components/Animation/ScoreJourney.tsx'
 import { SessionLog } from '../../components/Timer/SessionLog.tsx'
 import { Timer } from '../../components/Timer/Timer.tsx'
 import type { TimerLogEntry, TimerMode } from '../../components/Timer/timerTypes.ts'
@@ -165,18 +164,13 @@ export function MeasurementPage({
           </section>
         </div>
 
-        <div className="measurement-page__score-column">
-          <ScoreJourney
-            journey={journey}
-            score={originalScore + (scoreIncrement ?? 0)}
-          />
-          <ScorePanel
-            analysisError={analysisError}
-            analysisStatus={analysisStatus}
-            originalScore={originalScore}
-            scoreIncrement={scoreIncrement}
-          />
-        </div>
+        <ScorePanel
+          analysisError={analysisError}
+          analysisStatus={analysisStatus}
+          journey={journey}
+          originalScore={originalScore}
+          scoreIncrement={scoreIncrement}
+        />
       </div>
     </main>
   )
