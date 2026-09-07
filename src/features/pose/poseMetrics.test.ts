@@ -1,5 +1,4 @@
-import assert from 'node:assert/strict'
-import test from 'node:test'
+import { expect, test } from 'vitest'
 import { calculatePoseMetrics } from './poseMetrics.ts'
 import type { PoseFrame, PoseLandmark } from './poseTypes.ts'
 
@@ -36,7 +35,7 @@ test('検出状態は左右の肩のvisibility平均で算出する', () => {
     options,
   )
 
-  assert.ok(Math.abs(metrics.presence - 0.7) < 1e-10)
+  expect(Math.abs(metrics.presence - 0.7)).toBeLessThan(1e-10)
 })
 
 test('検出状態は腰のvisibilityに影響されない', () => {
@@ -49,6 +48,6 @@ test('検出状態は腰のvisibilityに影響されない', () => {
     options,
   )
 
-  assert.ok(Math.abs(visibleHips.presence - hiddenHips.presence) < 1e-10)
-  assert.ok(Math.abs(hiddenHips.presence - 0.7) < 1e-10)
+  expect(Math.abs(visibleHips.presence - hiddenHips.presence)).toBeLessThan(1e-10)
+  expect(Math.abs(hiddenHips.presence - 0.7)).toBeLessThan(1e-10)
 })
