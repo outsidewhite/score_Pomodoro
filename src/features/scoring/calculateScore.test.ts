@@ -1,5 +1,4 @@
-import assert from 'node:assert/strict'
-import test from 'node:test'
+import { expect, test } from 'vitest'
 import type { PoseFrame, PoseLandmark } from '../pose/poseTypes.ts'
 import { calculateScore, getEarnedScore } from './calculateScore.ts'
 
@@ -31,7 +30,11 @@ function createTiltedFrame(timestampMs: number, tilt: number): PoseFrame {
       return {
         visibility: 1,
         x: 0.5,
-        y: 0.5 + (isLeftShoulder || isRightShoulder || isLeftHip || isRightHip ? tilt : 0),
+        y:
+          0.5 +
+          (isLeftShoulder || isRightShoulder || isLeftHip || isRightHip
+            ? tilt
+            : 0),
         z: 0,
       }
     }),
@@ -40,7 +43,7 @@ function createTiltedFrame(timestampMs: number, tilt: number): PoseFrame {
 }
 
 test('解析フレームがない場合は各スコアを0にする', () => {
-  assert.deepEqual(calculateScore([]), {
+  expect(calculateScore([])).toEqual({
     earnedScore: 2,
     focusScore: 0,
     measuredDurationMs: 0,
@@ -51,7 +54,7 @@ test('解析フレームがない場合は各スコアを0にする', () => {
 })
 
 test('水平で動きのない姿勢を100点として評価する', () => {
-  assert.deepEqual(calculateScore([createFrame(1_000), createFrame(2_000)]), {
+  expect(calculateScore([createFrame(1_000), createFrame(2_000)])).toEqual({
     earnedScore: 3,
     focusScore: 100,
     measuredDurationMs: 1_000,
@@ -62,35 +65,37 @@ test('水平で動きのない姿勢を100点として評価する', () => {
 })
 
 test('重みがすべて0の場合は設定エラーにする', () => {
-  assert.throws(
-    () =>
-      calculateScore([createFrame(0)], {
-        goodScoreThreshold: 41,
-        maxMovement: 0.08,
-        maxTilt: 0.15,
-        weights: { posture: 0, presence: 0, stability: 0 },
-      }),
-    /重み合計/,
-  )
+  expect(() =>
+    calculateScore([createFrame(0)], {
+      goodScoreThreshold: 41,
+      maxMovement: 0.08,
+      maxTilt: 0.15,
+      weights: { posture: 0, presence: 0, stability: 0 },
+    }),
+  ).toThrow(/重み合計/)
 })
 
 test('1分間のフレームをまとめて集中評価と獲得点を算出する', () => {
-  const frames = [createFrame(0), createTiltedFrame(30_000, 0.2), createFrame(60_000)]
+  const frames = [
+    createFrame(0),
+    createTiltedFrame(30_000, 0.2),
+    createFrame(60_000),
+  ]
   const result = calculateScore(frames)
 
-  assert.equal(result.measuredDurationMs, 60_000)
-  assert.equal(result.focusScore, 60)
-  assert.equal(result.earnedScore, 3)
+  expect(result.measuredDurationMs).toBe(60_000)
+  expect(result.focusScore).toBe(60)
+  expect(result.earnedScore).toBe(3)
 })
 
 test('集中評価が良好の基準未満なら2点を獲得する', () => {
   const result = calculateScore([])
 
-  assert.equal(result.focusScore, 0)
-  assert.equal(result.earnedScore, 2)
+  expect(result.focusScore).toBe(0)
+  expect(result.earnedScore).toBe(2)
 })
 
 test('集中評価41点を良好の境界として獲得点を決める', () => {
-  assert.equal(getEarnedScore(40), 2)
-  assert.equal(getEarnedScore(41), 3)
+  expect(getEarnedScore(40)).toBe(2)
+  expect(getEarnedScore(41)).toBe(3)
 })
