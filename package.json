@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "test": "node --experimental-strip-types --test src/features/scoring/calculateScore.test.ts src/features/pose/poseMetrics.test.ts",
+    "test": "node --experimental-strip-types --test src/features/scoring/calculateScore.test.ts src/features/scoring/IntervalManager.test.ts src/features/pose/poseMetrics.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
