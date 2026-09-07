@@ -1,5 +1,4 @@
-import assert from 'node:assert/strict'
-import test from 'node:test'
+import { expect, test } from 'vitest'
 import type { PoseFrame, PoseLandmark } from '../pose/poseTypes.ts'
 import { calculateScore } from './calculateScore.ts'
 
@@ -40,7 +39,7 @@ function createTiltedFrame(timestampMs: number, tilt: number): PoseFrame {
 }
 
 test('解析フレームがない場合は各スコアを0にする', () => {
-  assert.deepEqual(calculateScore([]), {
+  expect(calculateScore([])).toEqual({
     measuredDurationMs: 0,
     postureScore: 0,
     presenceScore: 0,
@@ -50,7 +49,7 @@ test('解析フレームがない場合は各スコアを0にする', () => {
 })
 
 test('水平で動きのない姿勢を100点として評価する', () => {
-  assert.deepEqual(calculateScore([createFrame(1_000), createFrame(2_000)]), {
+  expect(calculateScore([createFrame(1_000), createFrame(2_000)])).toEqual({
     measuredDurationMs: 1_000,
     postureScore: 100,
     presenceScore: 100,
@@ -60,21 +59,19 @@ test('水平で動きのない姿勢を100点として評価する', () => {
 })
 
 test('重みがすべて0の場合は設定エラーにする', () => {
-  assert.throws(
-    () =>
-      calculateScore([createFrame(0)], {
-        maxMovement: 0.08,
-        maxTilt: 0.15,
-        weights: { posture: 0, presence: 0, stability: 0 },
-      }),
-    /重み合計/,
-  )
+  expect(() =>
+    calculateScore([createFrame(0)], {
+      maxMovement: 0.08,
+      maxTilt: 0.15,
+      weights: { posture: 0, presence: 0, stability: 0 },
+    }),
+  ).toThrow(/重み合計/)
 })
 
 test('3分間のフレームをまとめて最終スコアとして算出する', () => {
   const frames = [createFrame(0), createTiltedFrame(90_000, 0.2), createFrame(180_000)]
   const result = calculateScore(frames)
 
-  assert.equal(result.measuredDurationMs, 180_000)
-  assert.equal(result.totalScore, 60)
+  expect(result.measuredDurationMs).toBe(180_000)
+  expect(result.totalScore).toBe(60)
 })
