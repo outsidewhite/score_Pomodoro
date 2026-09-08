@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { SessionLog } from '../../components/Timer/SessionLog.tsx'
 import { Timer } from '../../components/Timer/Timer.tsx'
 import type { TimerLogEntry, TimerMode } from '../../components/Timer/timerTypes.ts'
 import { ScorePanel } from '../../components/Score/ScorePanel.tsx'
 import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
-import { NotificationCenter } from '../../components/Notification/NotificationCenter.tsx'
-import { useNotificationCenter } from '../../components/Notification/useNotificationCenter.ts'
 import { usePoseScoring } from '../../features/pose/usePoseScoring.ts'
 import type { ScoreResult } from '../../features/scoring/scoreTypes.ts'
 import type { MeasurementStatus } from '../../shared/types/measurement.ts'
 import './MeasurementPage.css'
+
+// 同じ事象の通知が積み重ならないよう、姿勢解析エラーの通知idは固定にする。
+const POSE_ANALYSIS_ERROR_TOAST_ID = 'pose-analysis-error'
 
 type MeasurementPageProps = {
   cameraStream: MediaStream
@@ -40,7 +42,6 @@ export function MeasurementPage({
   const [analysisStatus, setAnalysisStatus] = useState<'error' | 'loading' | 'paused' | 'ready'>('paused')
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [timerMode, setTimerMode] = useState<TimerMode>('away')
-  const { dismiss, notifications, notify } = useNotificationCenter()
   // Timerの単一クロックをログ表示にも渡し、秒の切り替わりを同期する。
   const handleTimerClockUpdate = useCallback((currentTimeMs: number) => {
     setTimerNow(currentTimeMs)
@@ -62,44 +63,27 @@ export function MeasurementPage({
       return nextLogs
     })
   }, [])
-  const lastAnalysisErrorNotificationId = useRef<string | null>(null)
   const handleAnalysisReady = useCallback(() => {
     setAnalysisStatus('ready')
     setAnalysisError(null)
-    if (lastAnalysisErrorNotificationId.current) {
-      dismiss(lastAnalysisErrorNotificationId.current)
-      lastAnalysisErrorNotificationId.current = null
-    }
-  }, [dismiss])
-  const handleAnalysisError = useCallback(
-    (message: string) => {
-      setAnalysisStatus('error')
-      setAnalysisError(message)
-      // 同一メッセージが連続発生しても、通知は1件だけ表示する。
-      const notificationId = `pose-analysis-error:${message}`
-      lastAnalysisErrorNotificationId.current = notificationId
-      notify({
-        id: notificationId,
-        message,
-        title: '姿勢解析でエラーが発生しました',
-        variant: 'error',
-      })
-    },
-    [notify],
-  )
-  const handleTimerModeChange = useCallback(
-    (nextMode: TimerMode) => {
-      setTimerMode(nextMode)
-      setAnalysisError(null)
-      // 集中開始時だけ解析準備へ入り、それ以外では未確定の採点を停止状態として扱う。
-      setAnalysisStatus(nextMode === 'focus' ? 'loading' : 'paused')
-      if (lastAnalysisErrorNotificationId.current) {
-        dismiss(lastAnalysisErrorNotificationId.current)
-        lastAnalysisErrorNotificationId.current = null
-      }
-    },
-    [dismiss],
-  )
+    toast.dismiss(POSE_ANALYSIS_ERROR_TOAST_ID)
+  }, [])
+  const handleAnalysisError = useCallback((message: string) => {
+    setAnalysisStatus('error')
+    setAnalysisError(message)
+    // 同じidの通知は新規追加ではなく更新されるため、連続発生しても1件だけ表示される。
+    toast.error('姿勢解析でエラーが発生しました', {
+      description: message,
+      id: POSE_ANALYSIS_ERROR_TOAST_ID,
+    })
+  }, [])
+  const handleTimerModeChange = useCallback((nextMode: TimerMode) => {
+    setTimerMode(nextMode)
+    setAnalysisError(null)
+    // 集中開始時だけ解析準備へ入り、それ以外では未確定の採点を停止状態として扱う。
+    setAnalysisStatus(nextMode === 'focus' ? 'loading' : 'paused')
+    toast.dismiss(POSE_ANALYSIS_ERROR_TOAST_ID)
+  }, [])
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
@@ -123,8 +107,6 @@ export function MeasurementPage({
 
   return (
     <main className="measurement-page">
-      <NotificationCenter notifications={notifications} onDismiss={dismiss} />
-
       <AppHeader
         status={status === 'measuring' ? '計測中' : '計測準備中'}
         statusTone={status === 'measuring' ? 'active' : 'setup'}
