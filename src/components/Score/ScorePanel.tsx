@@ -15,20 +15,12 @@ function formatScore(score: number) {
 }
 
 export function ScorePanel({
-  analysisError = null,
-  analysisStatus = 'ready',
   journey,
   originalScore,
   scoreIncrement,
 }: ScorePanelProps) {
   // 総合スコアは、計測開始前の値へ今回の加算分を足して表示する。
   const totalScore = originalScore + (scoreIncrement ?? 0)
-  const analysisTitle = {
-    error: '姿勢解析を停止しました',
-    loading: '姿勢解析を準備中…',
-    paused: 'タイマー停止中',
-    ready: '1分間の平均スコアを計測中',
-  }[analysisStatus]
 
   return (
     <section className="score-panel" aria-label="集中スコア">
