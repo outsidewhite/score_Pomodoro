@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { AppToaster } from './components/Notification/AppToaster.tsx'
 import type { ScoreResult } from './features/scoring/scoreTypes.ts'
 import { createJourney } from './features/trip/createJourney.ts'
 import type { Journey } from './features/trip/types.ts'
@@ -153,6 +154,9 @@ function App() {
 
   return (
     <div className="app-shell">
+      {/* 通知はアプリ全体で1箇所にまとめ、各画面からはtoast経由で呼び出す。 */}
+      <AppToaster />
+
       {page === 'start' && (
         <StartPage
           cameraError={cameraError}
