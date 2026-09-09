@@ -82,7 +82,6 @@ export function Timer({
   onLogEntry,
   onModeChange,
   startDisabled = false,
-  targetMinutes,
 }: TimerProps) {
   // 集中と休憩を個別に保持し、表示時に作業時間として合計する。
   const initialDurations: TimerDurations = {

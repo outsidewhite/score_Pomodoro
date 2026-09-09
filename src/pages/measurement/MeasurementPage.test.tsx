@@ -118,6 +118,11 @@ describe('MeasurementPageのモデル準備', () => {
     expect(screen.getByText('00:01:00')).toBeInTheDocument()
     expect(screen.getByText('集中')).toBeInTheDocument()
     expect(screen.getByText('離席')).toBeInTheDocument()
+
+    act(() => getLatestScoringCallbacks().onModelReady())
+    expect(
+      screen.getByRole('button', { name: 'タイマーを開始する' }),
+    ).toHaveAttribute('aria-pressed', 'false')
   })
 })
 

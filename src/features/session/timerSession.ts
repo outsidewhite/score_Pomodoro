@@ -27,15 +27,38 @@ function isValidLog(value: unknown): value is TimerLogEntry {
   )
 }
 
+function hasValidLogSequence(logs: TimerLogEntry[]) {
+  const ids = new Set<number>()
+
+  return logs.every((log, index) => {
+    if (ids.has(log.id)) return false
+    ids.add(log.id)
+
+    const previous = logs[index - 1]
+    if (!previous) return true
+
+    // 未完了ログは末尾に一つだけ置き、ログ同士の時系列が重ならないことを保証する。
+    return (
+      previous.endedAt !== null &&
+      log.startedAt >= previous.endedAt &&
+      log.id > previous.id
+    )
+  })
+}
+
 function isValidTimerSession(value: unknown): value is TimerSession {
   if (!value || typeof value !== 'object') return false
   const session = value as Partial<TimerSession>
   return (
     session.version === STORAGE_VERSION &&
     typeof session.sessionId === 'string' &&
+    session.sessionId.length > 0 &&
     isFiniteNumber(session.lastObservedAt) &&
     Array.isArray(session.logs) &&
-    session.logs.every(isValidLog)
+    session.logs.every(isValidLog) &&
+    hasValidLogSequence(session.logs) &&
+    (session.logs.length === 0 ||
+      session.lastObservedAt >= session.logs.at(-1)!.startedAt)
   )
 }
 
@@ -79,23 +102,40 @@ function resumeAsAway(session: TimerSession, resumedAt: number): TimerSession {
   return { ...session, lastObservedAt: resumedAt, logs }
 }
 
+function persistRestoredSession(session: TimerSession) {
+  try {
+    // 復元結果を即時保存し、再描画や連続リロードで同じ離席ログを追加しない。
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(session))
+  } catch {
+    // ストレージが利用できなくても、メモリ上の安全な状態で計測を継続する。
+  }
+  return session
+}
+
 export function loadTimerSession(
   sessionId: string,
   resumedAt = Date.now(),
 ): TimerSession {
   try {
     const serialized = window.sessionStorage.getItem(STORAGE_KEY)
-    if (!serialized) return createTimerSession(sessionId, resumedAt)
+    if (!serialized) {
+      return persistRestoredSession(createTimerSession(sessionId, resumedAt))
+    }
 
     const parsed: unknown = JSON.parse(serialized)
     if (!isValidTimerSession(parsed) || parsed.sessionId !== sessionId) {
       window.sessionStorage.removeItem(STORAGE_KEY)
-      return createTimerSession(sessionId, resumedAt)
+      return persistRestoredSession(createTimerSession(sessionId, resumedAt))
     }
-    return resumeAsAway(parsed, resumedAt)
+    return persistRestoredSession(resumeAsAway(parsed, resumedAt))
   } catch {
     // 保存データの破損やストレージ制限時は、ログだけを安全に初期化する。
-    return createTimerSession(sessionId, resumedAt)
+    try {
+      window.sessionStorage.removeItem(STORAGE_KEY)
+    } catch {
+      // 削除も許可されない環境では、保存領域には触れずに続行する。
+    }
+    return persistRestoredSession(createTimerSession(sessionId, resumedAt))
   }
 }
 
