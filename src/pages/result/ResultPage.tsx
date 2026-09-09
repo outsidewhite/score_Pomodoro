@@ -4,14 +4,20 @@ import type { ScoreResult } from '../../features/scoring/scoreTypes.ts'
 import './ResultPage.css'
 
 type ResultPageProps = {
+  earnedScore: number
   onRestart: () => void
   originalScore: number
   result: ScoreResult
 }
 
-export function ResultPage({ onRestart, originalScore, result }: ResultPageProps) {
-  // バックエンドから返された今回分を、計測開始前のスコアへ加算する。
-  const currentScore = originalScore + result.earnedScore
+export function ResultPage({
+  earnedScore,
+  onRestart,
+  originalScore,
+  result,
+}: ResultPageProps) {
+  // 最終評価と旅に加算する獲得スコアは、用途が異なるため分けて表示する。
+  const currentScore = originalScore + earnedScore
 
   return (
     <main className="result-page">
@@ -19,22 +25,20 @@ export function ResultPage({ onRestart, originalScore, result }: ResultPageProps
       <div className="result-page__content">
         <section className="result-page__card" aria-labelledby="result-title">
           <p>MEASUREMENT RESULT</p>
-          <h1 id="result-title">今回の加算スコア</h1>
-          <strong className="result-page__total">+{result.earnedScore}</strong>
+          <h1 id="result-title">最終総合評価</h1>
+          <strong className="result-page__total">
+            {result.measuredDurationMs > 0 ? result.totalScore : '評価なし'}
+          </strong>
 
           <div className="result-page__current-score">
             <span>現在のスコア</span>
             <strong>{currentScore.toLocaleString('ja-JP')}</strong>
             <small>
-              {originalScore.toLocaleString('ja-JP')} ＋ {result.earnedScore.toLocaleString('ja-JP')}
+              {originalScore.toLocaleString('ja-JP')} ＋ {earnedScore.toLocaleString('ja-JP')}
             </small>
           </div>
 
           <dl className="result-page__details">
-            <div>
-              <dt>集中評価</dt>
-              <dd>{result.focusScore}</dd>
-            </div>
             <div>
               <dt>姿勢</dt>
               <dd>{result.postureScore}</dd>
@@ -45,7 +49,7 @@ export function ResultPage({ onRestart, originalScore, result }: ResultPageProps
             </div>
             <div>
               <dt>検出状態</dt>
-              <dd>{result.presenceScore}</dd>
+              <dd>{result.detectionScore}</dd>
             </div>
           </dl>
 

@@ -1,21 +1,8 @@
-export type ScoreWeights = {
-  posture: number
-  presence: number
-  stability: number
-}
-
-export type ScoreConfig = {
-  goodScoreThreshold: number
-  maxMovement: number
-  maxTilt: number
-  weights: ScoreWeights
-}
-
+// セッション内の完了区間を集計し、結果画面へ渡す最終評価。
 export type ScoreResult = {
-  earnedScore: number
-  focusScore: number
+  detectionScore: number
   measuredDurationMs: number
   postureScore: number
-  presenceScore: number
   stabilityScore: number
+  totalScore: number
 }

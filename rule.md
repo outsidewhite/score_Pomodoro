@@ -75,13 +75,14 @@ src/features/scoring/
 ```text
 MediaPipeの解析値
     ↓
-poseMetrics.ts
-角度、移動量、姿勢の安定性を計算
+usePoseScoring.ts
+500msごとの評価結果を収集
     ↓
-calculateScore.ts
-各評価値を0〜100点へ変換
+intervalScoring.ts
+1分区間の姿勢・安定性・検出状態と獲得点を計算
     ↓
-ScoreResult
+scoringSession.ts
+完了区間を保存し、セッションの最終評価を計算
     ↓
 計測画面・終了画面へ渡す
 ```
@@ -112,13 +113,14 @@ src/
 │  ├─ camera/
 │  │  └─ cameraTypes.ts
 │  ├─ pose/
-│  │  ├─ poseMetrics.ts
-│  │  └─ poseTypes.ts
+│  │  ├─ poseTypes.ts
+│  │  └─ usePoseScoring.ts
 │  └─ scoring/
-│     ├─ calculateScore.ts
-│     ├─ scoreConfig.ts
+│     ├─ intervalScoring.ts
+│     ├─ intervalScoring.test.ts
+│     ├─ scoringSession.ts
+│     ├─ scoringSession.test.ts
 │     ├─ scoreTypes.ts
-│     └─ calculateScore.test.ts
 ├─ shared/
 │  └─ types/
 │     └─ measurement.ts
@@ -135,24 +137,15 @@ UIと内部処理は、共有する型を通してデータを受け渡します
 ```ts
 // UIへ渡すスコア計算結果。
 export type ScoreResult = {
-  totalScore: number
+  detectionScore: number
+  measuredDurationMs: number
   postureScore: number
   stabilityScore: number
-  presenceScore: number
-  measuredDurationMs: number
+  totalScore: number
 }
 
-// MediaPipeの解析値から最終スコアを計算する。
-export function calculateScore(): ScoreResult {
-  // 実際の計算処理をここに実装する。
-  return {
-    totalScore: 0,
-    postureScore: 0,
-    stabilityScore: 0,
-    presenceScore: 0,
-    measuredDurationMs: 0,
-  }
-}
+// 保存した完了区間から、結果画面へ渡す最終評価を計算する。
+export function summarizeScoringSession(session: ScoringSession): ScoreResult
 ```
 
 次の項目は両担当に影響するため、型を変更するPull Requestでは双方のレビューを必要とします。

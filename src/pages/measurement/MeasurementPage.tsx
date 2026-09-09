@@ -7,34 +7,47 @@ import { ScorePanel } from '../../components/Score/ScorePanel.tsx'
 import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import { usePoseScoring } from '../../features/pose/usePoseScoring.ts'
-import type { ScoreResult } from '../../features/scoring/scoreTypes.ts'
+import type {
+  PostureBaseline,
+  ScoreIntervalResult,
+} from '../../features/scoring/intervalScoring.ts'
 import type { Journey } from '../../features/trip/types.ts'
 import type { MeasurementStatus } from '../../shared/types/measurement.ts'
 import './MeasurementPage.css'
 
 // 同じ事象の通知が積み重ならないよう、姿勢解析エラーの通知idは固定にする。
 const POSE_ANALYSIS_ERROR_TOAST_ID = 'pose-analysis-error'
+const AUTO_AWAY_TOAST_ID = 'auto-away'
+const CALIBRATION_TOAST_ID = 'posture-calibration'
 
 type MeasurementPageProps = {
+  baseline: PostureBaseline | null
   cameraStream: MediaStream
   elapsedMs: number
   journey: Journey
+  nextIntervalNumber: number
+  onBaselineChange: (baseline: PostureBaseline) => void
   onFinish: () => void
-  onScoreUpdate: (result: ScoreResult) => void
+  onScoreUpdate: (result: ScoreIntervalResult) => void
   originalScore: number
   scoreIncrement: number | null
+  sessionId: string
   status: MeasurementStatus
   targetMinutes?: number
 }
 
 export function MeasurementPage({
+  baseline,
   cameraStream,
   elapsedMs,
   journey,
+  nextIntervalNumber,
+  onBaselineChange,
   onFinish,
   onScoreUpdate,
   originalScore,
   scoreIncrement,
+  sessionId,
   status,
   targetMinutes = 25,
 }: MeasurementPageProps) {
@@ -45,6 +58,7 @@ export function MeasurementPage({
   const [analysisStatus, setAnalysisStatus] = useState<'error' | 'loading' | 'paused' | 'ready'>('paused')
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [timerMode, setTimerMode] = useState<TimerMode>('away')
+  const [autoPauseRequest, setAutoPauseRequest] = useState(0)
   // Timerの単一クロックをログ表示にも渡し、秒の切り替わりを同期する。
   const handleTimerClockUpdate = useCallback((currentTimeMs: number) => {
     setTimerNow(currentTimeMs)
@@ -87,6 +101,22 @@ export function MeasurementPage({
     setAnalysisStatus(nextMode === 'focus' ? 'loading' : 'paused')
     toast.dismiss(POSE_ANALYSIS_ERROR_TOAST_ID)
   }, [])
+  const handleAwayDetected = useCallback(() => {
+    setAutoPauseRequest((request) => request + 1)
+    toast.warning('離席を検出したためタイマーを停止しました', {
+      id: AUTO_AWAY_TOAST_ID,
+    })
+  }, [])
+  const handleIntervalComplete = useCallback((result: ScoreIntervalResult) => {
+    if (result.isCalibration && !result.calibrationSucceeded) {
+      toast.warning('基準姿勢を取得できなかったため、次の1分で再試行します', {
+        id: CALIBRATION_TOAST_ID,
+      })
+    } else if (result.calibrationSucceeded) {
+      toast.success('基準姿勢を保存しました', { id: CALIBRATION_TOAST_ID })
+    }
+    onScoreUpdate(result)
+  }, [onScoreUpdate])
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
@@ -102,9 +132,14 @@ export function MeasurementPage({
 
   usePoseScoring({
     enabled: status === 'measuring' && timerMode === 'focus',
+    initialBaseline: baseline,
+    initialIntervalNumber: nextIntervalNumber,
+    onAwayDetected: handleAwayDetected,
+    onBaselineChange,
     onError: handleAnalysisError,
     onReady: handleAnalysisReady,
-    onResult: onScoreUpdate,
+    onIntervalComplete: handleIntervalComplete,
+    sessionId,
     videoRef,
   })
 
@@ -162,6 +197,7 @@ export function MeasurementPage({
 
               <div className="timer-panel__clock">
                 <Timer
+                  autoPauseRequest={autoPauseRequest}
                   disabled={status !== 'measuring'}
                   initialElapsedMs={elapsedMs}
                   onClockUpdate={handleTimerClockUpdate}
