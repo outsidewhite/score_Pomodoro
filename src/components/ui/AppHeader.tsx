@@ -1,8 +1,9 @@
+import type { StatusTone } from './statusTone.ts'
 import './AppHeader.css'
 
 type AppHeaderProps = {
   status: string
-  statusTone?: 'active' | 'complete' | 'setup'
+  statusTone?: StatusTone
 }
 
 export function AppHeader({ status, statusTone = 'setup' }: AppHeaderProps) {
