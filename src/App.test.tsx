@@ -14,6 +14,7 @@ vi.mock('./pages/measurement/MeasurementPage.tsx', () => ({
     cameraError: string | null
     cameraStream: MediaStream | null
     onCameraRetry: () => void
+    sessionId: string
     status: string
   }) => {
     measurementPageMock(props)
@@ -71,5 +72,29 @@ describe('measurementの再読み込み', () => {
     await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2))
     await screen.findByText('measuring')
     expect(window.location.pathname).toBe('/measurement')
+  })
+
+  test('採点データが破損している場合は関連するタイマーデータも初期化する', () => {
+    window.sessionStorage.setItem('score-pomodoro:scoring-session', '{broken')
+    window.sessionStorage.setItem(
+      'score-pomodoro:timer-session',
+      JSON.stringify({
+        lastObservedAt: 5_000,
+        logs: [
+          { endedAt: null, id: 1, mode: 'focus', startedAt: 1_000 },
+        ],
+        sessionId: 'old-session',
+        version: 1,
+      }),
+    )
+
+    render(<App />)
+
+    expect(
+      window.sessionStorage.getItem('score-pomodoro:timer-session'),
+    ).toBeNull()
+    expect(measurementPageMock.mock.calls.at(-1)?.[0].sessionId).not.toBe(
+      'old-session',
+    )
   })
 })
