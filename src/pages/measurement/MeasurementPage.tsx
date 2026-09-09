@@ -6,6 +6,7 @@ import type { TimerLogEntry, TimerMode } from '../../components/Timer/timerTypes
 import { ScorePanel } from '../../components/Score/ScorePanel.tsx'
 import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
+import type { ModelStatus } from '../../features/camera/cameraTypes.ts'
 import { usePoseScoring } from '../../features/pose/usePoseScoring.ts'
 import type {
   PostureBaseline,
@@ -16,6 +17,7 @@ import './MeasurementPage.css'
 
 // 同じ事象の通知が積み重ならないよう、姿勢解析エラーの通知idは固定にする。
 const POSE_ANALYSIS_ERROR_TOAST_ID = 'pose-analysis-error'
+const POSE_MODEL_LOAD_TOAST_ID = 'pose-model-load'
 const AUTO_AWAY_TOAST_ID = 'auto-away'
 const CALIBRATION_TOAST_ID = 'posture-calibration'
 
@@ -52,7 +54,8 @@ export function MeasurementPage({
   const videoRef = useRef<HTMLVideoElement>(null)
   const [timerNow, setTimerNow] = useState(Date.now)
   const [timerLogs, setTimerLogs] = useState<TimerLogEntry[]>([])
-  const [analysisStatus, setAnalysisStatus] = useState<'error' | 'loading' | 'paused' | 'ready'>('paused')
+  const [modelLoadStatus, setModelLoadStatus] = useState<ModelStatus>('loading')
+  const [modelReloadRequest, setModelReloadRequest] = useState(0)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [timerMode, setTimerMode] = useState<TimerMode>('away')
   const [autoPauseRequest, setAutoPauseRequest] = useState(0)
@@ -77,13 +80,41 @@ export function MeasurementPage({
       return nextLogs
     })
   }, [])
-  const handleAnalysisReady = useCallback(() => {
-    setAnalysisStatus('ready')
+  const requestModelReload = useCallback(() => {
+    setModelReloadRequest((request) => request + 1)
+  }, [])
+  const handleModelLoadStart = useCallback(() => {
+    setModelLoadStatus('loading')
+    setAnalysisError(null)
+    // 読み込み完了まで同じ通知を維持し、成功・失敗時に同じidで更新する。
+    toast.loading('モデル読み込み中です', {
+      duration: Infinity,
+      id: POSE_MODEL_LOAD_TOAST_ID,
+    })
+  }, [])
+  const handleModelReady = useCallback(() => {
+    setModelLoadStatus('ready')
     setAnalysisError(null)
     toast.dismiss(POSE_ANALYSIS_ERROR_TOAST_ID)
+    toast.success('読み込みに成功しました！', {
+      id: POSE_MODEL_LOAD_TOAST_ID,
+    })
   }, [])
+  const handleModelLoadError = useCallback((message: string) => {
+    setModelLoadStatus('error')
+    setAnalysisError(message)
+    // ユーザー操作があった場合だけモデルの再読み込みを実行する。
+    toast.error('モデルの読み込みに失敗しました', {
+      action: {
+        label: '再読み込み',
+        onClick: requestModelReload,
+      },
+      description: message,
+      duration: Infinity,
+      id: POSE_MODEL_LOAD_TOAST_ID,
+    })
+  }, [requestModelReload])
   const handleAnalysisError = useCallback((message: string) => {
-    setAnalysisStatus('error')
     setAnalysisError(message)
     // 同じidの通知は新規追加ではなく更新されるため、連続発生しても1件だけ表示される。
     toast.error('姿勢解析でエラーが発生しました', {
@@ -94,8 +125,6 @@ export function MeasurementPage({
   const handleTimerModeChange = useCallback((nextMode: TimerMode) => {
     setTimerMode(nextMode)
     setAnalysisError(null)
-    // 集中開始時だけ解析準備へ入り、それ以外では未確定の採点を停止状態として扱う。
-    setAnalysisStatus(nextMode === 'focus' ? 'loading' : 'paused')
     toast.dismiss(POSE_ANALYSIS_ERROR_TOAST_ID)
   }, [])
   const handleAwayDetected = useCallback(() => {
@@ -127,6 +156,12 @@ export function MeasurementPage({
     }
   }, [cameraStream])
 
+  useEffect(() => () => {
+    // 読み込み途中で画面を離れた場合に、待機中の通知を次画面へ残さない。
+    toast.dismiss(POSE_MODEL_LOAD_TOAST_ID)
+    toast.dismiss(POSE_ANALYSIS_ERROR_TOAST_ID)
+  }, [])
+
   usePoseScoring({
     enabled: status === 'measuring' && timerMode === 'focus',
     initialBaseline: baseline,
@@ -134,11 +169,23 @@ export function MeasurementPage({
     onAwayDetected: handleAwayDetected,
     onBaselineChange,
     onError: handleAnalysisError,
-    onReady: handleAnalysisReady,
     onIntervalComplete: handleIntervalComplete,
+    onModelLoadError: handleModelLoadError,
+    onModelLoadStart: handleModelLoadStart,
+    onModelReady: handleModelReady,
+    reloadRequest: modelReloadRequest,
     sessionId,
     videoRef,
   })
+
+  const analysisStatus: 'error' | 'loading' | 'paused' | 'ready' =
+    modelLoadStatus === 'loading'
+      ? 'loading'
+      : modelLoadStatus === 'error' || analysisError
+        ? 'error'
+        : timerMode === 'focus'
+          ? 'ready'
+          : 'paused'
 
   return (
     <main className="measurement-page">
@@ -201,6 +248,7 @@ export function MeasurementPage({
                   onExit={onFinish}
                   onLogEntry={handleTimerLog}
                   onModeChange={handleTimerModeChange}
+                  startDisabled={modelLoadStatus !== 'ready'}
                   targetMinutes={targetMinutes}
                 />
               </div>

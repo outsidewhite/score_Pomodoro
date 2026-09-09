@@ -25,3 +25,14 @@ test('姿勢解析からの離席要求で集中タイマーを停止する', as
     expect.objectContaining({ mode: 'away' }),
   )
 })
+
+test('モデル準備中は開始だけを無効化し、終了操作は利用できる', () => {
+  render(<Timer onExit={vi.fn()} startDisabled />)
+
+  expect(
+    screen.getByRole('button', { name: 'タイマーを開始する' }),
+  ).toBeDisabled()
+  expect(
+    screen.getByRole('button', { name: 'セッションを終了する' }),
+  ).toBeEnabled()
+})

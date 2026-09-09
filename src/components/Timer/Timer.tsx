@@ -15,6 +15,7 @@ type TimerProps = {
   onExit: () => void
   onLogEntry?: (entry: TimerLogEntry) => void
   onModeChange?: (mode: TimerMode) => void
+  startDisabled?: boolean
   targetMinutes?: number
 }
 
@@ -76,6 +77,7 @@ export function Timer({
   onExit,
   onLogEntry,
   onModeChange,
+  startDisabled = false,
   targetMinutes,
 }: TimerProps) {
   // 集中と休憩を個別に保持し、表示時に作業時間として合計する。
@@ -335,7 +337,11 @@ export function Timer({
           aria-label={isRunning ? 'タイマーを停止する' : 'タイマーを開始する'}
           aria-pressed={isRunning}
           onClick={handlePlayToggle}
-          disabled={disabled || (isRunning && mode === 'break')}
+          disabled={
+            disabled ||
+            (!isRunning && startDisabled) ||
+            (isRunning && mode === 'break')
+          }
         >
           {isRunning ? <StopIcon /> : <PlayIcon />}
         </button>
