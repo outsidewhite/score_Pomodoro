@@ -122,8 +122,8 @@ export function getShoulderPose(
 
 export function getEarnedScore(totalScore: number): EarnedScore {
   if (!Number.isFinite(totalScore) || totalScore <= 0) return 0
-  if (totalScore <= 30) return 1
-  if (totalScore <= 60) return 2
+  if (totalScore <= 40) return 1
+  if (totalScore <= 80) return 2
   return 3
 }
 
