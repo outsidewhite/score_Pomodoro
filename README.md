@@ -80,8 +80,8 @@ src/
 ├─ components/ui/              共通UI
 ├─ features/
 │  ├─ camera/                  カメラ・モデル状態の型
-│  ├─ pose/                    ランドマークから姿勢指標を計算
-│  └─ scoring/                 姿勢指標からスコアを計算
+│  ├─ pose/                    MediaPipeの準備と500msごとの評価収集
+│  └─ scoring/                 1分区間の採点・保存・最終集計
 ├─ shared/types/               UIと内部処理で共有する型
 ├─ styles/                     デザイントークンと共通スタイル
 └─ assets/                     画像などの静的素材
@@ -105,7 +105,7 @@ MediaPipeのランドマーク
 
 獲得スコアは総合評価0点で0点、1〜30点で1点、31〜60点で2点、61〜100点で3点です。15秒区間の検出状態が2回連続で0点になった場合は離席と判定し、未完了区間を破棄してタイマーを停止します。
 
-計算式と初期設定は `src/features/scoring/`、姿勢指標の計算は `src/features/pose/` に配置しています。
+計算式とセッション集計は `src/features/scoring/`、MediaPipeによる評価収集は `src/features/pose/` に配置しています。
 
 ## 開発状況
 
