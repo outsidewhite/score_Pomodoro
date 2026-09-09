@@ -51,10 +51,10 @@ describe('getEarnedScore', () => {
   test.each([
     [0, 0],
     [1, 1],
-    [30, 1],
-    [31, 2],
-    [60, 2],
-    [61, 3],
+    [40, 1],
+    [41, 2],
+    [80, 2],
+    [81, 3],
     [100, 3],
   ] as const)('%d点を獲得スコア%d点へ変換する', (score, expected) => {
     expect(getEarnedScore(score)).toBe(expected)
