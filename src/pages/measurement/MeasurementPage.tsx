@@ -32,6 +32,7 @@ const CALIBRATION_TOAST_ID = 'posture-calibration'
 type MeasurementPageProps = {
   baseline: PostureBaseline | null
   cameraError: string | null
+  cameraStopRequest?: number
   cameraStream: MediaStream | null
   elapsedMs: number
   isPreparingCamera: boolean
@@ -50,6 +51,7 @@ type MeasurementPageProps = {
 export function MeasurementPage({
   baseline,
   cameraError,
+  cameraStopRequest = 0,
   cameraStream,
   elapsedMs,
   isPreparingCamera,
@@ -331,9 +333,10 @@ export function MeasurementPage({
               <SessionLog currentTimeMs={timerNow} entries={timerLogs} />
 
               <div className="timer-panel__clock">
+                {/* 離席検出とカメラ切断はどちらも単調増加の要求番号で、和も単調増加になる。 */}
                 <Timer
                   autoBreakRequest={autoBreakRequest}
-                  autoPauseRequest={autoPauseRequest}
+                  autoPauseRequest={autoPauseRequest + cameraStopRequest}
                   disabled={status !== 'measuring'}
                   initialElapsedMs={initialElapsedMs}
                   initialLogId={initialLogId}

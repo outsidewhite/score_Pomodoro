@@ -17,20 +17,36 @@ vi.mock('../../features/pose/usePoseScoring.ts', () => ({
 }))
 
 type PoseScoringCallbacks = {
+  enabled: boolean
   onModelLoadError: (message: string) => void
   onModelLoadStart: () => void
   onModelReady: () => void
   reloadRequest: number
 }
 
-function renderMeasurementPage(status: MeasurementStatus = 'measuring') {
-  render(
+type RenderOverrides = {
+  cameraError?: string | null
+  cameraStopRequest?: number
+  cameraStream?: MediaStream | null
+}
+
+function measurementPageElement(
+  status: MeasurementStatus = 'measuring',
+  overrides: RenderOverrides = {},
+) {
+  const {
+    cameraError = null,
+    cameraStopRequest = 0,
+    cameraStream = {} as MediaStream,
+  } = overrides
+  return (
     <>
       <AppToaster />
       <MeasurementPage
         baseline={null}
-        cameraError={null}
-        cameraStream={{} as MediaStream}
+        cameraError={cameraError}
+        cameraStopRequest={cameraStopRequest}
+        cameraStream={cameraStream}
         elapsedMs={0}
         isPreparingCamera={false}
         nextIntervalNumber={1}
@@ -43,8 +59,15 @@ function renderMeasurementPage(status: MeasurementStatus = 'measuring') {
         sessionId="test-session"
         status={status}
       />
-    </>,
+    </>
   )
+}
+
+function renderMeasurementPage(
+  status: MeasurementStatus = 'measuring',
+  overrides: RenderOverrides = {},
+) {
+  return render(measurementPageElement(status, overrides))
 }
 
 function getLatestScoringCallbacks() {
@@ -163,5 +186,56 @@ describe('MeasurementPageの状態表示', () => {
     const status = screen.getByRole('status')
     expect(status).toHaveTextContent('計測準備中')
     expect(status).toHaveClass('app-header__status--setup')
+  })
+})
+
+
+describe('MeasurementPageのカメラ切断', () => {
+  test('カメラ切断の停止要求でタイマーを停止する', async () => {
+    const user = userEvent.setup()
+    const { rerender } = renderMeasurementPage()
+    act(() => getLatestScoringCallbacks().onModelReady())
+
+    await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+    expectStatus('計測中', 'measuring', 'focus')
+
+    rerender(measurementPageElement('measuring', { cameraStopRequest: 1 }))
+
+    await screen.findByRole('button', { name: 'タイマーを開始する' })
+    expectStatus('離席中', 'away', 'away')
+  })
+
+  test('カメラ切断後は姿勢解析を停止する', async () => {
+    const user = userEvent.setup()
+    const { rerender } = renderMeasurementPage()
+    act(() => getLatestScoringCallbacks().onModelReady())
+
+    await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+    await waitFor(() => expect(getLatestScoringCallbacks().enabled).toBe(true))
+
+    // 切断でカメラが未接続へ戻ると、計測準備中として解析を止める。
+    rerender(
+      measurementPageElement('preparing', {
+        cameraStopRequest: 1,
+        cameraStream: null,
+      }),
+    )
+
+    await waitFor(() => expect(getLatestScoringCallbacks().enabled).toBe(false))
+  })
+
+  test('カメラ切断時は既存の再取得操作を表示する', () => {
+    renderMeasurementPage('preparing', {
+      cameraError: 'カメラが切断されました。接続を確認して、カメラを再取得してください。',
+      cameraStopRequest: 1,
+      cameraStream: null,
+    })
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'カメラが切断されました。接続を確認して、カメラを再取得してください。',
+    )
+    expect(
+      screen.getByRole('button', { name: 'カメラを再取得' }),
+    ).toBeInTheDocument()
   })
 })

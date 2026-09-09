@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppToaster } from './components/Notification/AppToaster.tsx'
+import {
+  CAMERA_DISCONNECTED_MESSAGE,
+  useCameraDisconnect,
+} from './features/camera/useCameraDisconnect.ts'
 import type {
   PostureBaseline,
   ScoreIntervalResult,
@@ -54,6 +58,7 @@ function App() {
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [isPreparingCamera, setIsPreparingCamera] = useState(false)
+  const [cameraStopRequest, setCameraStopRequest] = useState(0)
   const cameraStreamRef = useRef<MediaStream | null>(null)
   const isPreparingCameraRef = useRef(false)
   const scoreResult = summarizeScoringSession(scoringSession)
@@ -70,6 +75,18 @@ function App() {
     cameraStreamRef.current = null
     setCameraStream(null)
   }, [])
+
+  // 映像トラックが終了した場合は、計測を止めてカメラ状態を未接続へ戻す。
+  const handleCameraDisconnect = useCallback(() => {
+    stopCamera()
+    setCameraError(CAMERA_DISCONNECTED_MESSAGE)
+    setCameraStopRequest((request) => request + 1)
+  }, [stopCamera])
+
+  useCameraDisconnect({
+    onDisconnect: handleCameraDisconnect,
+    stream: cameraStream,
+  })
 
   const requestCamera = useCallback(async () => {
     if (cameraStreamRef.current) return cameraStreamRef.current
@@ -200,6 +217,7 @@ function App() {
         <MeasurementPage
           baseline={scoringSession.baseline}
           cameraError={cameraError}
+          cameraStopRequest={cameraStopRequest}
           cameraStream={cameraStream}
           elapsedMs={0}
           isPreparingCamera={isPreparingCamera}
