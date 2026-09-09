@@ -7,6 +7,7 @@ import { ScorePanel } from '../../components/Score/ScorePanel.tsx'
 import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import { usePoseScoring } from '../../features/pose/usePoseScoring.ts'
+import { useFocusDropNotification } from '../../features/scoring/useFocusDropNotification.ts'
 import type {
   PostureBaseline,
   ScoreIntervalResult,
@@ -55,7 +56,17 @@ export function MeasurementPage({
   const [analysisStatus, setAnalysisStatus] = useState<'error' | 'loading' | 'paused' | 'ready'>('paused')
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [timerMode, setTimerMode] = useState<TimerMode>('away')
+  const [autoBreakRequest, setAutoBreakRequest] = useState(0)
   const [autoPauseRequest, setAutoPauseRequest] = useState(0)
+  const handleFocusDropBreakRequest = useCallback(() => {
+    setAutoBreakRequest((request) => request + 1)
+  }, [])
+  const {
+    handleFocusStateChange,
+    handleIntervalComplete: handleFocusDropIntervalComplete,
+  } = useFocusDropNotification({
+    onBreakRequest: handleFocusDropBreakRequest,
+  })
   // Timerの単一クロックをログ表示にも渡し、秒の切り替わりを同期する。
   const handleTimerClockUpdate = useCallback((currentTimeMs: number) => {
     setTimerNow(currentTimeMs)
@@ -93,11 +104,12 @@ export function MeasurementPage({
   }, [])
   const handleTimerModeChange = useCallback((nextMode: TimerMode) => {
     setTimerMode(nextMode)
+    handleFocusStateChange(nextMode === 'focus')
     setAnalysisError(null)
     // 集中開始時だけ解析準備へ入り、それ以外では未確定の採点を停止状態として扱う。
     setAnalysisStatus(nextMode === 'focus' ? 'loading' : 'paused')
     toast.dismiss(POSE_ANALYSIS_ERROR_TOAST_ID)
-  }, [])
+  }, [handleFocusStateChange])
   const handleAwayDetected = useCallback(() => {
     setAutoPauseRequest((request) => request + 1)
     toast.warning('離席を検出したためタイマーを停止しました', {
@@ -112,8 +124,9 @@ export function MeasurementPage({
     } else if (result.calibrationSucceeded) {
       toast.success('基準姿勢を保存しました', { id: CALIBRATION_TOAST_ID })
     }
+    handleFocusDropIntervalComplete(result)
     onScoreUpdate(result)
-  }, [onScoreUpdate])
+  }, [handleFocusDropIntervalComplete, onScoreUpdate])
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
@@ -194,6 +207,7 @@ export function MeasurementPage({
 
               <div className="timer-panel__clock">
                 <Timer
+                  autoBreakRequest={autoBreakRequest}
                   autoPauseRequest={autoPauseRequest}
                   disabled={status !== 'measuring'}
                   initialElapsedMs={elapsedMs}
