@@ -1,0 +1,167 @@
+import { act, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { toast } from 'sonner'
+import { AppToaster } from '../../components/Notification/AppToaster.tsx'
+import {
+  createTimerSession,
+  saveTimerSession,
+} from '../../features/session/timerSession.ts'
+import type { MeasurementStatus } from '../../shared/types/measurement.ts'
+import { MeasurementPage } from './MeasurementPage.tsx'
+
+const usePoseScoringMock = vi.hoisted(() => vi.fn())
+
+vi.mock('../../features/pose/usePoseScoring.ts', () => ({
+  usePoseScoring: usePoseScoringMock,
+}))
+
+type PoseScoringCallbacks = {
+  onModelLoadError: (message: string) => void
+  onModelLoadStart: () => void
+  onModelReady: () => void
+  reloadRequest: number
+}
+
+function renderMeasurementPage(status: MeasurementStatus = 'measuring') {
+  render(
+    <>
+      <AppToaster />
+      <MeasurementPage
+        baseline={null}
+        cameraError={null}
+        cameraStream={{} as MediaStream}
+        elapsedMs={0}
+        isPreparingCamera={false}
+        nextIntervalNumber={1}
+        onBaselineChange={vi.fn()}
+        onCameraRetry={vi.fn()}
+        onFinish={vi.fn()}
+        onScoreUpdate={vi.fn()}
+        originalScore={0}
+        scoreIncrement={0}
+        sessionId="test-session"
+        status={status}
+      />
+    </>,
+  )
+}
+
+function getLatestScoringCallbacks() {
+  return usePoseScoringMock.mock.calls.at(-1)?.[0] as PoseScoringCallbacks
+}
+
+beforeEach(() => {
+  usePoseScoringMock.mockClear()
+  window.sessionStorage.clear()
+  // jsdomでは映像再生を実行できないため、準備済みPromiseとして置き換える。
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+})
+
+afterEach(() => {
+  toast.dismiss()
+  vi.restoreAllMocks()
+})
+
+describe('MeasurementPageのモデル準備', () => {
+  test('読み込み完了までタイマー開始を無効化して通知する', async () => {
+    renderMeasurementPage()
+    const callbacks = getLatestScoringCallbacks()
+
+    act(() => callbacks.onModelLoadStart())
+
+    expect(await screen.findByText('モデル読み込み中です')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'タイマーを開始する' }),
+    ).toBeDisabled()
+
+    act(() => callbacks.onModelReady())
+
+    expect(await screen.findByText('読み込みに成功しました！')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'タイマーを開始する' }),
+    ).toBeEnabled()
+  })
+
+  test('読み込み失敗通知からユーザーが再読み込みを要求できる', async () => {
+    const user = userEvent.setup()
+    renderMeasurementPage()
+    const callbacks = getLatestScoringCallbacks()
+
+    act(() => callbacks.onModelLoadError('モデルを取得できませんでした。'))
+
+    await user.click(await screen.findByRole('button', { name: '再読み込み' }))
+
+    await waitFor(() => {
+      expect(getLatestScoringCallbacks().reloadRequest).toBe(1)
+    })
+    expect(
+      screen.getByRole('button', { name: 'タイマーを開始する' }),
+    ).toBeDisabled()
+  })
+
+  test('同じ採点セッションの経過時間とログを復元する', () => {
+    const observedAt = Date.now() - 5_000
+    const timerSession = createTimerSession('test-session', observedAt)
+    timerSession.logs = [
+      {
+        endedAt: null,
+        id: 1,
+        mode: 'focus',
+        startedAt: observedAt - 60_000,
+      },
+    ]
+    saveTimerSession(timerSession)
+
+    renderMeasurementPage()
+
+    expect(screen.getByText('00:01:00')).toBeInTheDocument()
+    expect(screen.getByText('集中')).toBeInTheDocument()
+    expect(screen.getByText('離席')).toBeInTheDocument()
+  })
+})
+
+// ランプ（ヘッダー）とタイマーの表示が、同じ状態を指していることを確認する。
+function expectStatus(label: string, tone: string, timerMode: string) {
+  const status = screen.getByRole('status')
+  expect(status).toHaveTextContent(label)
+  expect(status).toHaveClass(`app-header__status--${tone}`)
+  expect(
+    screen.getByText(/^\d\d:\d\d:\d\d$/).closest('.session-timer'),
+  ).toHaveClass(`session-timer--${timerMode}`)
+}
+
+describe('MeasurementPageの状態表示', () => {
+  test('タイマー開始前は離席中として表示する', () => {
+    renderMeasurementPage()
+
+    expectStatus('離席中', 'away', 'away')
+  })
+
+  test('タイマーの開始・休憩・停止に合わせて状態表示が切り替わる', async () => {
+    const user = userEvent.setup()
+    renderMeasurementPage()
+    // タイマーはモデルの読み込みが完了してから開始できる。
+    act(() => getLatestScoringCallbacks().onModelReady())
+
+    await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+    expectStatus('計測中', 'measuring', 'focus')
+
+    await user.click(screen.getByRole('button', { name: '休憩に入る' }))
+    expectStatus('休憩中', 'break', 'break')
+
+    await user.click(screen.getByRole('button', { name: '集中に戻る' }))
+    expectStatus('計測中', 'measuring', 'focus')
+
+    await user.click(screen.getByRole('button', { name: 'タイマーを停止する' }))
+    expectStatus('離席中', 'away', 'away')
+  })
+
+  test('計測開始前の状態では計測準備中として表示する', () => {
+    renderMeasurementPage('preparing')
+
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent('計測準備中')
+    expect(status).toHaveClass('app-header__status--setup')
+  })
+})

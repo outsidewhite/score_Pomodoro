@@ -14,6 +14,13 @@
   --color-timer-soft: #f8f4ee;
   --color-success: #237a4a;
   --color-danger: #b84848;
+
+  /* 計測状態を示す色。ヘッダーのランプとタイマーの文字色で共有する。 */
+  --color-status-measuring: var(--color-success);
+  --color-status-break: #3f8bc5;
+  --color-status-break-strong: #27628f;
+  --color-status-idle: #9a9a9a;
+
   --color-text-strong: #18363b;
   --color-text-muted: #60777a;
   --color-border: #d8e7e5;
