@@ -61,16 +61,19 @@
   border-radius: 50%;
 }
 
-.app-header__status--setup > span {
-  background: var(--color-timer);
+/* ランプはタイマーの文字色と同じトークンを参照し、状態の色を一致させる。 */
+.app-header__status--setup > span,
+.app-header__status--away > span {
+  background: var(--color-status-idle);
 }
 
-.app-header__status--active > span {
-  background: var(--color-score);
-}
-
+.app-header__status--measuring > span,
 .app-header__status--complete > span {
-  background: var(--color-primary);
+  background: var(--color-status-measuring);
+}
+
+.app-header__status--break > span {
+  background: var(--color-status-break);
 }
 
 @media (max-width: 440px) {

@@ -6,6 +6,7 @@ import type { TimerLogEntry, TimerMode } from '../../components/Timer/timerTypes
 import { ScorePanel } from '../../components/Score/ScorePanel.tsx'
 import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
+import { getTimerStatus } from '../../components/ui/statusTone.ts'
 import type { ModelStatus } from '../../features/camera/cameraTypes.ts'
 import { usePoseScoring } from '../../features/pose/usePoseScoring.ts'
 import type {
@@ -238,12 +239,14 @@ export function MeasurementPage({
         : timerMode === 'focus'
           ? 'ready'
           : 'paused'
+  // ヘッダーの表示はタイマーの状態から導き、ランプ色と時刻の文字色を対応させる。
+  const timerStatus = getTimerStatus(timerMode)
 
   return (
     <main className="measurement-page">
       <AppHeader
-        status={status === 'measuring' ? '計測中' : '計測準備中'}
-        statusTone={status === 'measuring' ? 'active' : 'setup'}
+        status={status === 'measuring' ? timerStatus.label : '計測準備中'}
+        statusTone={status === 'measuring' ? timerStatus.tone : 'setup'}
       />
 
       {/* 左を上下1:1、画面全体を横3:2に分ける計測画面の基本骨格。 */}

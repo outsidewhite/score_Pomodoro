@@ -7,6 +7,7 @@ import {
   createTimerSession,
   saveTimerSession,
 } from '../../features/session/timerSession.ts'
+import type { MeasurementStatus } from '../../shared/types/measurement.ts'
 import { MeasurementPage } from './MeasurementPage.tsx'
 
 const usePoseScoringMock = vi.hoisted(() => vi.fn())
@@ -22,7 +23,7 @@ type PoseScoringCallbacks = {
   reloadRequest: number
 }
 
-function renderMeasurementPage() {
+function renderMeasurementPage(status: MeasurementStatus = 'measuring') {
   render(
     <>
       <AppToaster />
@@ -40,7 +41,7 @@ function renderMeasurementPage() {
         originalScore={0}
         scoreIncrement={0}
         sessionId="test-session"
-        status="measuring"
+        status={status}
       />
     </>,
   )
@@ -50,19 +51,19 @@ function getLatestScoringCallbacks() {
   return usePoseScoringMock.mock.calls.at(-1)?.[0] as PoseScoringCallbacks
 }
 
+beforeEach(() => {
+  usePoseScoringMock.mockClear()
+  window.sessionStorage.clear()
+  // jsdomでは映像再生を実行できないため、準備済みPromiseとして置き換える。
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+})
+
+afterEach(() => {
+  toast.dismiss()
+  vi.restoreAllMocks()
+})
+
 describe('MeasurementPageのモデル準備', () => {
-  beforeEach(() => {
-    usePoseScoringMock.mockClear()
-    window.sessionStorage.clear()
-    // jsdomでは映像再生を実行できないため、準備済みPromiseとして置き換える。
-    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
-  })
-
-  afterEach(() => {
-    toast.dismiss()
-    vi.restoreAllMocks()
-  })
-
   test('読み込み完了までタイマー開始を無効化して通知する', async () => {
     renderMeasurementPage()
     const callbacks = getLatestScoringCallbacks()
@@ -117,5 +118,50 @@ describe('MeasurementPageのモデル準備', () => {
     expect(screen.getByText('00:01:00')).toBeInTheDocument()
     expect(screen.getByText('集中')).toBeInTheDocument()
     expect(screen.getByText('離席')).toBeInTheDocument()
+  })
+})
+
+// ランプ（ヘッダー）とタイマーの表示が、同じ状態を指していることを確認する。
+function expectStatus(label: string, tone: string, timerMode: string) {
+  const status = screen.getByRole('status')
+  expect(status).toHaveTextContent(label)
+  expect(status).toHaveClass(`app-header__status--${tone}`)
+  expect(
+    screen.getByText(/^\d\d:\d\d:\d\d$/).closest('.session-timer'),
+  ).toHaveClass(`session-timer--${timerMode}`)
+}
+
+describe('MeasurementPageの状態表示', () => {
+  test('タイマー開始前は離席中として表示する', () => {
+    renderMeasurementPage()
+
+    expectStatus('離席中', 'away', 'away')
+  })
+
+  test('タイマーの開始・休憩・停止に合わせて状態表示が切り替わる', async () => {
+    const user = userEvent.setup()
+    renderMeasurementPage()
+    // タイマーはモデルの読み込みが完了してから開始できる。
+    act(() => getLatestScoringCallbacks().onModelReady())
+
+    await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+    expectStatus('計測中', 'measuring', 'focus')
+
+    await user.click(screen.getByRole('button', { name: '休憩に入る' }))
+    expectStatus('休憩中', 'break', 'break')
+
+    await user.click(screen.getByRole('button', { name: '集中に戻る' }))
+    expectStatus('計測中', 'measuring', 'focus')
+
+    await user.click(screen.getByRole('button', { name: 'タイマーを停止する' }))
+    expectStatus('離席中', 'away', 'away')
+  })
+
+  test('計測開始前の状態では計測準備中として表示する', () => {
+    renderMeasurementPage('preparing')
+
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent('計測準備中')
+    expect(status).toHaveClass('app-header__status--setup')
   })
 })
