@@ -18,6 +18,7 @@ type TimerProps = {
   onLogEntry?: (entry: TimerLogEntry) => void
   onModeChange?: (mode: TimerMode) => void
   startDisabled?: boolean
+  // 目標作業時間は現在のタイマー表示では使用しないが、呼び出し側の指定は受け付ける。
   targetMinutes?: number
 }
 
@@ -82,7 +83,6 @@ export function Timer({
   onLogEntry,
   onModeChange,
   startDisabled = false,
-  targetMinutes,
 }: TimerProps) {
   // 集中と休憩を個別に保持し、表示時に作業時間として合計する。
   const initialDurations: TimerDurations = {
