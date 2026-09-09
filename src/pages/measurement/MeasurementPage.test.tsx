@@ -3,6 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { toast } from 'sonner'
 import { AppToaster } from '../../components/Notification/AppToaster.tsx'
+import {
+  createTimerSession,
+  saveTimerSession,
+} from '../../features/session/timerSession.ts'
 import { MeasurementPage } from './MeasurementPage.tsx'
 
 const usePoseScoringMock = vi.hoisted(() => vi.fn())
@@ -24,10 +28,13 @@ function renderMeasurementPage() {
       <AppToaster />
       <MeasurementPage
         baseline={null}
+        cameraError={null}
         cameraStream={{} as MediaStream}
         elapsedMs={0}
+        isPreparingCamera={false}
         nextIntervalNumber={1}
         onBaselineChange={vi.fn()}
+        onCameraRetry={vi.fn()}
         onFinish={vi.fn()}
         onScoreUpdate={vi.fn()}
         originalScore={0}
@@ -46,6 +53,7 @@ function getLatestScoringCallbacks() {
 describe('MeasurementPageのモデル準備', () => {
   beforeEach(() => {
     usePoseScoringMock.mockClear()
+    window.sessionStorage.clear()
     // jsdomでは映像再生を実行できないため、準備済みPromiseとして置き換える。
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
   })
@@ -89,5 +97,25 @@ describe('MeasurementPageのモデル準備', () => {
     expect(
       screen.getByRole('button', { name: 'タイマーを開始する' }),
     ).toBeDisabled()
+  })
+
+  test('同じ採点セッションの経過時間とログを復元する', () => {
+    const observedAt = Date.now() - 5_000
+    const timerSession = createTimerSession('test-session', observedAt)
+    timerSession.logs = [
+      {
+        endedAt: null,
+        id: 1,
+        mode: 'focus',
+        startedAt: observedAt - 60_000,
+      },
+    ]
+    saveTimerSession(timerSession)
+
+    renderMeasurementPage()
+
+    expect(screen.getByText('00:01:00')).toBeInTheDocument()
+    expect(screen.getByText('集中')).toBeInTheDocument()
+    expect(screen.getByText('離席')).toBeInTheDocument()
   })
 })

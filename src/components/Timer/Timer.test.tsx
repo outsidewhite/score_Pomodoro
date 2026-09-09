@@ -36,3 +36,22 @@ test('モデル準備中は開始だけを無効化し、終了操作は利用�
     screen.getByRole('button', { name: 'セッションを終了する' }),
   ).toBeEnabled()
 })
+
+test('復元したログIDの続きから新しいログを発行する', async () => {
+  const user = userEvent.setup()
+  const onLogEntry = vi.fn()
+  render(
+    <Timer
+      initialElapsedMs={60_000}
+      initialLogId={4}
+      onExit={vi.fn()}
+      onLogEntry={onLogEntry}
+    />,
+  )
+
+  await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+
+  expect(onLogEntry).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 5, mode: 'focus' }),
+  )
+})

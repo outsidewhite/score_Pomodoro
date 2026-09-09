@@ -12,6 +12,12 @@ import type {
   PostureBaseline,
   ScoreIntervalResult,
 } from '../../features/scoring/intervalScoring.ts'
+import {
+  getMeasuredWorkDuration,
+  loadTimerSession,
+  saveTimerSession,
+  type TimerSession,
+} from '../../features/session/timerSession.ts'
 import type { MeasurementStatus } from '../../shared/types/measurement.ts'
 import './MeasurementPage.css'
 
@@ -23,10 +29,13 @@ const CALIBRATION_TOAST_ID = 'posture-calibration'
 
 type MeasurementPageProps = {
   baseline: PostureBaseline | null
-  cameraStream: MediaStream
+  cameraError: string | null
+  cameraStream: MediaStream | null
   elapsedMs: number
+  isPreparingCamera: boolean
   nextIntervalNumber: number
   onBaselineChange: (baseline: PostureBaseline) => void
+  onCameraRetry: () => void
   onFinish: () => void
   onScoreUpdate: (result: ScoreIntervalResult) => void
   originalScore: number
@@ -38,10 +47,13 @@ type MeasurementPageProps = {
 
 export function MeasurementPage({
   baseline,
+  cameraError,
   cameraStream,
   elapsedMs,
+  isPreparingCamera,
   nextIntervalNumber,
   onBaselineChange,
+  onCameraRetry,
   onFinish,
   onScoreUpdate,
   originalScore,
@@ -50,36 +62,63 @@ export function MeasurementPage({
   status,
   targetMinutes = 25,
 }: MeasurementPageProps) {
+  const [initialTimerSession] = useState(() => loadTimerSession(sessionId))
   const [isCameraBlurred, setIsCameraBlurred] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [timerNow, setTimerNow] = useState(Date.now)
-  const [timerLogs, setTimerLogs] = useState<TimerLogEntry[]>([])
+  const [timerNow, setTimerNow] = useState(initialTimerSession.lastObservedAt)
+  const [timerLogs, setTimerLogs] = useState<TimerLogEntry[]>(
+    initialTimerSession.logs,
+  )
+  const timerLogsRef = useRef(initialTimerSession.logs)
   const [modelLoadStatus, setModelLoadStatus] = useState<ModelStatus>('loading')
   const [modelReloadRequest, setModelReloadRequest] = useState(0)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [timerMode, setTimerMode] = useState<TimerMode>('away')
   const [autoPauseRequest, setAutoPauseRequest] = useState(0)
+  const initialElapsedMs = Math.max(
+    elapsedMs,
+    getMeasuredWorkDuration(
+      initialTimerSession.logs,
+      initialTimerSession.lastObservedAt,
+    ),
+  )
+  const initialLogId = Math.max(
+    0,
+    ...initialTimerSession.logs.map(({ id }) => id),
+  )
+  const persistTimerLogs = useCallback((
+    logs: TimerLogEntry[],
+    lastObservedAt: number,
+  ) => {
+    const session: TimerSession = {
+      ...initialTimerSession,
+      lastObservedAt,
+      logs,
+    }
+    saveTimerSession(session)
+  }, [initialTimerSession])
   // Timerの単一クロックをログ表示にも渡し、秒の切り替わりを同期する。
   const handleTimerClockUpdate = useCallback((currentTimeMs: number) => {
     setTimerNow(currentTimeMs)
-  }, [])
+    persistTimerLogs(timerLogsRef.current, currentTimeMs)
+  }, [persistTimerLogs])
   // 新しいモードが始まった時刻で直前のログを確定する。
   const handleTimerLog = useCallback((entry: TimerLogEntry) => {
-    setTimerLogs((currentLogs) => {
-      const nextLogs = [...currentLogs]
-      const previousEntry = nextLogs.at(-1)
+    const nextLogs = [...timerLogsRef.current]
+    const previousEntry = nextLogs.at(-1)
 
-      if (previousEntry && previousEntry.endedAt === null) {
-        nextLogs[nextLogs.length - 1] = {
-          ...previousEntry,
-          endedAt: Math.max(previousEntry.startedAt, entry.startedAt),
-        }
+    if (previousEntry && previousEntry.endedAt === null) {
+      nextLogs[nextLogs.length - 1] = {
+        ...previousEntry,
+        endedAt: Math.max(previousEntry.startedAt, entry.startedAt),
       }
+    }
 
-      nextLogs.push(entry)
-      return nextLogs
-    })
-  }, [])
+    nextLogs.push(entry)
+    timerLogsRef.current = nextLogs
+    setTimerLogs(nextLogs)
+    persistTimerLogs(nextLogs, entry.startedAt)
+  }, [persistTimerLogs])
   const requestModelReload = useCallback(() => {
     setModelReloadRequest((request) => request + 1)
   }, [])
@@ -147,9 +186,9 @@ export function MeasurementPage({
     const video = videoRef.current
     if (!video) return
 
-    // START時に取得したストリームを表示する。ぼかし操作でもストリーム自体は停止しない。
+    // 取得済みのストリームだけを表示し、再取得中も計測画面自体は維持する。
     video.srcObject = cameraStream
-    void video.play()
+    if (cameraStream) void video.play()
 
     return () => {
       video.srcObject = null
@@ -161,6 +200,19 @@ export function MeasurementPage({
     toast.dismiss(POSE_MODEL_LOAD_TOAST_ID)
     toast.dismiss(POSE_ANALYSIS_ERROR_TOAST_ID)
   }, [])
+
+  useEffect(() => {
+    const handlePageHide = () => {
+      persistTimerLogs(timerLogsRef.current, Date.now())
+    }
+    window.addEventListener('pagehide', handlePageHide)
+
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide)
+      // 通常の画面遷移でも、最後に観測した状態を同じセッションへ保存する。
+      persistTimerLogs(timerLogsRef.current, Date.now())
+    }
+  }, [persistTimerLogs])
 
   usePoseScoring({
     enabled: status === 'measuring' && timerMode === 'focus',
@@ -212,6 +264,28 @@ export function MeasurementPage({
                   muted
                   playsInline
                 />
+                {!cameraStream && (
+                  <div
+                    className="camera-panel__placeholder"
+                    role={cameraError ? 'alert' : 'status'}
+                  >
+                    <span className="camera-panel__camera-icon" aria-hidden="true" />
+                    <strong>
+                      {isPreparingCamera
+                        ? 'カメラを準備中です…'
+                        : 'カメラを利用できません'}
+                    </strong>
+                    <small>
+                      {cameraError ??
+                        '再読み込み後のカメラストリームを取得しています。'}
+                    </small>
+                    {!isPreparingCamera && (
+                      <Button variant="secondary" onClick={onCameraRetry}>
+                        カメラを再取得
+                      </Button>
+                    )}
+                  </div>
+                )}
                 {isCameraBlurred && (
                   <div className="camera-panel__blur-message">
                     <strong>カメラ映像をぼかしています</strong>
@@ -224,6 +298,7 @@ export function MeasurementPage({
                 <Button
                   variant="secondary"
                   aria-pressed={isCameraBlurred}
+                  disabled={!cameraStream}
                   onClick={() => setIsCameraBlurred((blurred) => !blurred)}
                 >
                   {isCameraBlurred ? 'ぼかしを解除' : 'カメラをぼかす'}
@@ -243,7 +318,8 @@ export function MeasurementPage({
                 <Timer
                   autoPauseRequest={autoPauseRequest}
                   disabled={status !== 'measuring'}
-                  initialElapsedMs={elapsedMs}
+                  initialElapsedMs={initialElapsedMs}
+                  initialLogId={initialLogId}
                   onClockUpdate={handleTimerClockUpdate}
                   onExit={onFinish}
                   onLogEntry={handleTimerLog}
