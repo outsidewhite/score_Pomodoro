@@ -1,6 +1,6 @@
 export type ScoreWeights = {
+  detection: number
   posture: number
-  presence: number
   stability: number
 }
 
@@ -11,9 +11,9 @@ export type ScoreConfig = {
 }
 
 export type ScoreResult = {
+  detectionScore: number
   measuredDurationMs: number
   postureScore: number
-  presenceScore: number
   stabilityScore: number
   totalScore: number
 }
