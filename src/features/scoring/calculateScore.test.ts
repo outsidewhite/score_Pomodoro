@@ -40,9 +40,9 @@ function createTiltedFrame(timestampMs: number, tilt: number): PoseFrame {
 
 test('解析フレームがない場合は各スコアを0にする', () => {
   expect(calculateScore([])).toEqual({
+    detectionScore: 0,
     measuredDurationMs: 0,
     postureScore: 0,
-    presenceScore: 0,
     stabilityScore: 0,
     totalScore: 0,
   })
@@ -50,9 +50,9 @@ test('解析フレームがない場合は各スコアを0にする', () => {
 
 test('水平で動きのない姿勢を100点として評価する', () => {
   expect(calculateScore([createFrame(1_000), createFrame(2_000)])).toEqual({
+    detectionScore: 100,
     measuredDurationMs: 1_000,
     postureScore: 100,
-    presenceScore: 100,
     stabilityScore: 100,
     totalScore: 100,
   })
@@ -63,7 +63,7 @@ test('重みがすべて0の場合は設定エラーにする', () => {
     calculateScore([createFrame(0)], {
       maxMovement: 0.08,
       maxTilt: 0.15,
-      weights: { posture: 0, presence: 0, stability: 0 },
+      weights: { detection: 0, posture: 0, stability: 0 },
     }),
   ).toThrow(/重み合計/)
 })

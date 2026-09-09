@@ -25,7 +25,7 @@ export function calculateScore(
   })
   const weightTotal =
     config.weights.posture +
-    config.weights.presence +
+    config.weights.detection +
     config.weights.stability
 
   if (weightTotal <= 0) {
@@ -34,14 +34,14 @@ export function calculateScore(
 
   const total =
     (metrics.posture * config.weights.posture +
-      metrics.presence * config.weights.presence +
+      metrics.presence * config.weights.detection +
       metrics.stability * config.weights.stability) /
     weightTotal
 
   return {
+    detectionScore: toPercentage(metrics.presence),
     measuredDurationMs: getMeasuredDurationMs(frames),
     postureScore: toPercentage(metrics.posture),
-    presenceScore: toPercentage(metrics.presence),
     stabilityScore: toPercentage(metrics.stability),
     totalScore: toPercentage(total),
   }

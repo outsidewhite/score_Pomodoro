@@ -8,6 +8,7 @@ import type {
 import './Timer.css'
 
 type TimerProps = {
+  autoPauseRequest?: number
   disabled?: boolean
   initialElapsedMs?: number
   onClockUpdate?: (currentTimeMs: number) => void
@@ -68,6 +69,7 @@ function MoonIcon() {
 }
 
 export function Timer({
+  autoPauseRequest = 0,
   disabled = false,
   initialElapsedMs = 0,
   onClockUpdate,
@@ -86,6 +88,7 @@ export function Timer({
   const logIdRef = useRef(0)
   const wasRunningBeforeExitRef = useRef<boolean | null>(null)
   const cancelExitButtonRef = useRef<HTMLButtonElement>(null)
+  const handledAutoPauseRequestRef = useRef(autoPauseRequest)
   const [activeStartedAt, setActiveStartedAt] = useState<number | null>(null)
   const [durations, setDurations] = useState<TimerDurations>(initialDurations)
   const [displayNow, setDisplayNow] = useState(0)
@@ -127,7 +130,7 @@ export function Timer({
     return () => window.clearInterval(timerId)
   }, [hasSessionStarted, syncClock])
 
-  const commitActiveTime = (now: number) => {
+  const commitActiveTime = useCallback((now: number) => {
     if (activeStartedAt === null) {
       return
     }
@@ -141,7 +144,16 @@ export function Timer({
     }
     durationsRef.current = nextDurations
     setDurations(nextDurations)
-  }
+  }, [activeStartedAt, mode])
+
+  const pauseTimer = useCallback((now: number) => {
+    if (!isRunning) return
+    commitActiveTime(now)
+    setActiveStartedAt(null)
+    setIsRunning(false)
+    syncClock(now)
+    emitLog('away', now)
+  }, [commitActiveTime, emitLog, isRunning, syncClock])
 
   const handlePlayToggle = () => {
     // 休憩中は右側の集中ボタンでのみ集中状態へ戻せるようにする。
@@ -151,11 +163,7 @@ export function Timer({
 
     const now = Date.now()
     if (isRunning) {
-      commitActiveTime(now)
-      setActiveStartedAt(null)
-      setIsRunning(false)
-      syncClock(now)
-      emitLog('away', now)
+      pauseTimer(now)
       return
     }
 
@@ -165,6 +173,17 @@ export function Timer({
     syncClock(now)
     emitLog(mode, now)
   }
+
+  useEffect(() => {
+    if (autoPauseRequest === handledAutoPauseRequestRef.current) return
+    handledAutoPauseRequestRef.current = autoPauseRequest
+
+    // 姿勢解析からの離席要求も手動停止と同じ経路で時間とログを確定する。
+    if (isRunning && mode === 'focus') {
+      // oxlint-disable-next-line react/set-state-in-effect -- 外部イベントをタイマー内部の停止処理へ同期する。
+      pauseTimer(Date.now())
+    }
+  }, [autoPauseRequest, isRunning, mode, pauseTimer])
 
   const handleBreakToggle = () => {
     // 離席中は休憩・集中の内部モードを変更しない。

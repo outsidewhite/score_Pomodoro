@@ -6,8 +6,8 @@ export const DEFAULT_SCORE_CONFIG: ScoreConfig = {
   // 連続フレーム間で、この値以上の移動を安定性0として扱う。
   maxMovement: 0.08,
   weights: {
+    detection: 0.2,
     posture: 0.4,
-    presence: 0.2,
     stability: 0.4,
   },
 }

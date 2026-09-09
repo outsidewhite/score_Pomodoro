@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppToaster } from './components/Notification/AppToaster.tsx'
-import type { ScoreResult } from './features/scoring/scoreTypes.ts'
+import type {
+  PostureBaseline,
+  ScoreIntervalResult,
+} from './features/scoring/intervalScoring.ts'
+import {
+  appendScoreInterval,
+  clearScoringSession,
+  createScoringSession,
+  getTotalEarnedScore,
+  loadScoringSession,
+  saveScoringSession,
+  summarizeScoringSession,
+} from './features/scoring/scoringSession.ts'
 import { MeasurementPage } from './pages/measurement/MeasurementPage.tsx'
 import { ResultPage } from './pages/result/ResultPage.tsx'
 import {
@@ -15,16 +27,8 @@ const DEFAULT_SETTINGS: SessionSettings = {
   targetMinutes: 25,
 }
 
-// セッション開始時の累積スコアは0点から始める。
+// 旅の累積値は現在のセッションで獲得した点数から始める。
 const INITIAL_SCORE = 0
-
-const EMPTY_RESULT: ScoreResult = {
-  measuredDurationMs: 0,
-  postureScore: 0,
-  presenceScore: 0,
-  stabilityScore: 0,
-  totalScore: 0,
-}
 
 function getPageFromPath(): AppPage {
   if (window.location.pathname === '/measurement') {
@@ -40,12 +44,23 @@ function getPageFromPath(): AppPage {
 
 function App() {
   const [page, setPage] = useState<AppPage>(getPageFromPath)
-  const [settings, setSettings] = useState<SessionSettings>(DEFAULT_SETTINGS)
+  const [scoringSession, setScoringSession] = useState(() =>
+    loadScoringSession() ?? createScoringSession(DEFAULT_SETTINGS.targetMinutes),
+  )
+  const [settings, setSettings] = useState<SessionSettings>({
+    targetMinutes: scoringSession.targetMinutes,
+  })
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [isPreparingCamera, setIsPreparingCamera] = useState(false)
-  const [scoreResult, setScoreResult] = useState<ScoreResult>(EMPTY_RESULT)
   const cameraStreamRef = useRef<MediaStream | null>(null)
+  const scoreResult = summarizeScoringSession(scoringSession)
+  const totalEarnedScore = getTotalEarnedScore(scoringSession)
+
+  useEffect(() => {
+    // 完了区間と基準姿勢を毎回保存し、再読み込み後も同じセッションを復元する。
+    saveScoringSession(scoringSession)
+  }, [scoringSession])
 
   // 計測終了後にカメラが動き続けないよう、保持中の全トラックをまとめて終了する。
   const stopCamera = useCallback(() => {
@@ -106,8 +121,11 @@ function App() {
       })
       cameraStreamRef.current = stream
       setCameraStream(stream)
-      setScoreResult(EMPTY_RESULT)
       setSettings(nextSettings)
+      setScoringSession((currentSession) => ({
+        ...currentSession,
+        targetMinutes: nextSettings.targetMinutes,
+      }))
       window.history.pushState(null, '', '/measurement')
       setPage('measurement')
     } catch (error) {
@@ -131,18 +149,22 @@ function App() {
     setPage('result')
   }
 
-  const handleScoreUpdate = useCallback((evaluation: ScoreResult) => {
-    // 完了した3分区間の平均スコアだけを、今回の獲得スコアへ加算する。
-    setScoreResult((currentResult) => ({
-      ...evaluation,
-      measuredDurationMs:
-        currentResult.measuredDurationMs + evaluation.measuredDurationMs,
-      totalScore: currentResult.totalScore + evaluation.totalScore,
-    }))
+  const handleScoreUpdate = useCallback((evaluation: ScoreIntervalResult) => {
+    // Reactの再描画や再通知でも、同じ区間を二重加算しない。
+    setScoringSession((currentSession) =>
+      appendScoreInterval(currentSession, evaluation),
+    )
+  }, [])
+
+  const handleBaselineChange = useCallback((baseline: PostureBaseline) => {
+    setScoringSession((currentSession) => ({ ...currentSession, baseline }))
   }, [])
 
   const handleRestart = () => {
     stopCamera()
+    clearScoringSession()
+    const nextSession = createScoringSession(settings.targetMinutes)
+    setScoringSession(nextSession)
     window.history.pushState(null, '', '/start')
     setPage('start')
   }
@@ -162,18 +184,23 @@ function App() {
       )}
       {page === 'measurement' && cameraStream && (
         <MeasurementPage
+          baseline={scoringSession.baseline}
           cameraStream={cameraStream}
           elapsedMs={0}
+          nextIntervalNumber={scoringSession.nextIntervalNumber}
+          onBaselineChange={handleBaselineChange}
           onFinish={handleFinish}
           onScoreUpdate={handleScoreUpdate}
           originalScore={INITIAL_SCORE}
-          scoreIncrement={scoreResult.totalScore}
+          scoreIncrement={totalEarnedScore}
+          sessionId={scoringSession.sessionId}
           status="measuring"
           targetMinutes={settings.targetMinutes}
         />
       )}
       {page === 'result' && (
         <ResultPage
+          earnedScore={totalEarnedScore}
           onRestart={handleRestart}
           originalScore={INITIAL_SCORE}
           result={scoreResult}
