@@ -320,10 +320,6 @@ export function Timer({
         {formatElapsedTime(totalWorkMs)}
       </strong>
 
-      {targetMinutes !== undefined && (
-        <p className="session-timer__target">目標時間 {targetMinutes}分</p>
-      )}
-
       <div className="session-timer__controls" aria-label="タイマー操作">
         <button
           className="timer-control timer-control--small"
