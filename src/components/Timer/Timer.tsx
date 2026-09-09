@@ -11,10 +11,12 @@ type TimerProps = {
   autoPauseRequest?: number
   disabled?: boolean
   initialElapsedMs?: number
+  initialLogId?: number
   onClockUpdate?: (currentTimeMs: number) => void
   onExit: () => void
   onLogEntry?: (entry: TimerLogEntry) => void
   onModeChange?: (mode: TimerMode) => void
+  startDisabled?: boolean
   targetMinutes?: number
 }
 
@@ -72,10 +74,12 @@ export function Timer({
   autoPauseRequest = 0,
   disabled = false,
   initialElapsedMs = 0,
+  initialLogId = 0,
   onClockUpdate,
   onExit,
   onLogEntry,
   onModeChange,
+  startDisabled = false,
   targetMinutes,
 }: TimerProps) {
   // 集中と休憩を個別に保持し、表示時に作業時間として合計する。
@@ -85,14 +89,16 @@ export function Timer({
   }
   const durationsRef = useRef<TimerDurations>(initialDurations)
   const breakStartedAtDurationRef = useRef(0)
-  const logIdRef = useRef(0)
+  const logIdRef = useRef(initialLogId)
   const wasRunningBeforeExitRef = useRef<boolean | null>(null)
   const cancelExitButtonRef = useRef<HTMLButtonElement>(null)
   const handledAutoPauseRequestRef = useRef(autoPauseRequest)
   const [activeStartedAt, setActiveStartedAt] = useState<number | null>(null)
   const [durations, setDurations] = useState<TimerDurations>(initialDurations)
   const [displayNow, setDisplayNow] = useState(0)
-  const [hasSessionStarted, setHasSessionStarted] = useState(false)
+  const [hasSessionStarted, setHasSessionStarted] = useState(
+    initialElapsedMs > 0 || initialLogId > 0,
+  )
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
   const [mode, setMode] = useState<RunningTimerMode>('focus')
@@ -335,7 +341,11 @@ export function Timer({
           aria-label={isRunning ? 'タイマーを停止する' : 'タイマーを開始する'}
           aria-pressed={isRunning}
           onClick={handlePlayToggle}
-          disabled={disabled || (isRunning && mode === 'break')}
+          disabled={
+            disabled ||
+            (!isRunning && startDisabled) ||
+            (isRunning && mode === 'break')
+          }
         >
           {isRunning ? <StopIcon /> : <PlayIcon />}
         </button>

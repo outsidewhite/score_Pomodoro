@@ -13,6 +13,7 @@ import {
   saveScoringSession,
   summarizeScoringSession,
 } from './features/scoring/scoringSession.ts'
+import { clearTimerSession } from './features/session/timerSession.ts'
 import { MeasurementPage } from './pages/measurement/MeasurementPage.tsx'
 import { ResultPage } from './pages/result/ResultPage.tsx'
 import {
@@ -54,6 +55,7 @@ function App() {
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [isPreparingCamera, setIsPreparingCamera] = useState(false)
   const cameraStreamRef = useRef<MediaStream | null>(null)
+  const isPreparingCameraRef = useRef(false)
   const scoreResult = summarizeScoringSession(scoringSession)
   const totalEarnedScore = getTotalEarnedScore(scoringSession)
 
@@ -69,17 +71,47 @@ function App() {
     setCameraStream(null)
   }, [])
 
+  const requestCamera = useCallback(async () => {
+    if (cameraStreamRef.current) return cameraStreamRef.current
+    if (isPreparingCameraRef.current) return null
+
+    isPreparingCameraRef.current = true
+    setIsPreparingCamera(true)
+    setCameraError(null)
+
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('unsupported')
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: true,
+      })
+      cameraStreamRef.current = stream
+      setCameraStream(stream)
+      return stream
+    } catch (error) {
+      const permissionDenied =
+        error instanceof DOMException &&
+        (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')
+
+      setCameraError(
+        permissionDenied
+          ? 'カメラの使用が許可されていません。ブラウザの設定から許可して、もう一度お試しください。'
+          : 'カメラを利用できませんでした。接続状況を確認して、もう一度お試しください。',
+      )
+      return null
+    } finally {
+      isPreparingCameraRef.current = false
+      setIsPreparingCamera(false)
+    }
+  }, [])
+
   useEffect(() => {
     // ブラウザの戻る・進む操作でも表示ページをURLと同期する。
     const handlePopState = () => {
       const nextPage = getPageFromPath()
-
-      // カメラ未許可の状態では、履歴操作から計測画面へ直接入れないようにする。
-      if (nextPage === 'measurement' && !cameraStreamRef.current) {
-        window.history.replaceState(null, '', '/start')
-        setPage('start')
-        return
-      }
 
       if (nextPage !== 'measurement') {
         stopCamera()
@@ -93,55 +125,36 @@ function App() {
       window.history.replaceState(null, '', '/start')
     }
 
-    // 再読み込みなどでカメラなしに計測URLを開いた場合も、開始画面へ戻す。
-    if (window.location.pathname === '/measurement' && !cameraStreamRef.current) {
-      window.history.replaceState(null, '', '/start')
-      setPage('start')
-    }
-
     return () => {
       window.removeEventListener('popstate', handlePopState)
       cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
     }
   }, [stopCamera])
 
+  useEffect(() => {
+    if (page !== 'measurement' || cameraStreamRef.current) return
+
+    // リロード後も計測画面を維持し、失われたカメラストリームだけを再取得する。
+    void requestCamera()
+  }, [page, requestCamera])
+
   const handleStart = async (nextSettings: SessionSettings) => {
-    setIsPreparingCamera(true)
-    setCameraError(null)
+    // START操作をユーザー起点としてカメラ許可を求め、成功した場合だけ計測へ進む。
+    const stream = await requestCamera()
+    if (!stream) return
 
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('unsupported')
-      }
-
-      // START操作をユーザー起点としてカメラ許可を求め、成功した場合だけ計測へ進む。
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: true,
-      })
-      cameraStreamRef.current = stream
-      setCameraStream(stream)
-      setSettings(nextSettings)
-      setScoringSession((currentSession) => ({
-        ...currentSession,
-        targetMinutes: nextSettings.targetMinutes,
-      }))
-      window.history.pushState(null, '', '/measurement')
-      setPage('measurement')
-    } catch (error) {
-      const permissionDenied =
-        error instanceof DOMException &&
-        (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')
-
-      setCameraError(
-        permissionDenied
-          ? 'カメラの使用が許可されていません。ブラウザの設定から許可して、もう一度お試しください。'
-          : 'カメラを利用できませんでした。接続状況を確認して、もう一度お試しください。',
-      )
-    } finally {
-      setIsPreparingCamera(false)
-    }
+    setSettings(nextSettings)
+    setScoringSession((currentSession) => ({
+      ...currentSession,
+      targetMinutes: nextSettings.targetMinutes,
+    }))
+    window.history.pushState(null, '', '/measurement')
+    setPage('measurement')
   }
+
+  const handleCameraRetry = useCallback(() => {
+    void requestCamera()
+  }, [requestCamera])
 
   const handleFinish = () => {
     stopCamera()
@@ -163,6 +176,7 @@ function App() {
   const handleRestart = () => {
     stopCamera()
     clearScoringSession()
+    clearTimerSession()
     const nextSession = createScoringSession(settings.targetMinutes)
     setScoringSession(nextSession)
     window.history.pushState(null, '', '/start')
@@ -182,19 +196,22 @@ function App() {
           onStart={handleStart}
         />
       )}
-      {page === 'measurement' && cameraStream && (
+      {page === 'measurement' && (
         <MeasurementPage
           baseline={scoringSession.baseline}
+          cameraError={cameraError}
           cameraStream={cameraStream}
           elapsedMs={0}
+          isPreparingCamera={isPreparingCamera}
           nextIntervalNumber={scoringSession.nextIntervalNumber}
           onBaselineChange={handleBaselineChange}
+          onCameraRetry={handleCameraRetry}
           onFinish={handleFinish}
           onScoreUpdate={handleScoreUpdate}
           originalScore={INITIAL_SCORE}
           scoreIncrement={totalEarnedScore}
           sessionId={scoringSession.sessionId}
-          status="measuring"
+          status={cameraStream ? 'measuring' : 'preparing'}
           targetMinutes={settings.targetMinutes}
         />
       )}

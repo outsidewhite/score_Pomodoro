@@ -29,7 +29,10 @@ type PoseScoringOptions = {
   onBaselineChange: (baseline: PostureBaseline) => void
   onError: (message: string) => void
   onIntervalComplete: (result: ScoreIntervalResult) => void
-  onReady: () => void
+  onModelLoadError: (message: string) => void
+  onModelLoadStart: () => void
+  onModelReady: () => void
+  reloadRequest: number
   sessionId: string
   videoRef: RefObject<HTMLVideoElement | null>
 }
@@ -42,17 +45,18 @@ export function usePoseScoring({
   onBaselineChange,
   onError,
   onIntervalComplete,
-  onReady,
+  onModelLoadError,
+  onModelLoadStart,
+  onModelReady,
+  reloadRequest,
   sessionId,
   videoRef,
 }: PoseScoringOptions) {
   const landmarkerRef = useRef<PoseLandmarker | null>(null)
-  const enabledRef = useRef(enabled)
   const initialBaselineRef = useRef(initialBaseline)
   const initialIntervalNumberRef = useRef(initialIntervalNumber)
 
   useEffect(() => {
-    enabledRef.current = enabled
     if (!enabled) {
       // 停止中に復元・保存された値を、次の集中開始時の起点として同期する。
       initialBaselineRef.current = initialBaseline
@@ -65,6 +69,7 @@ export function usePoseScoring({
     let disposed = false
 
     const prepareLandmarker = async () => {
+      onModelLoadStart()
       try {
         const vision = await FilesetResolver.forVisionTasks(WASM_PATH)
         const landmarker = await PoseLandmarker.createFromOptions(vision, {
@@ -80,10 +85,12 @@ export function usePoseScoring({
         }
 
         landmarkerRef.current = landmarker
-        if (enabledRef.current) onReady()
+        onModelReady()
       } catch {
         if (!disposed) {
-          onError('姿勢解析モデルを読み込めませんでした。通信状況を確認してください。')
+          onModelLoadError(
+            '姿勢解析モデルを読み込めませんでした。通信状況を確認してください。',
+          )
         }
       }
     }
@@ -94,15 +101,10 @@ export function usePoseScoring({
       landmarkerRef.current?.close()
       landmarkerRef.current = null
     }
-  }, [onError, onReady])
+  }, [onModelLoadError, onModelLoadStart, onModelReady, reloadRequest])
 
   useEffect(() => {
     if (!enabled) return
-
-    if (landmarkerRef.current) {
-      // 事前準備済みの場合も、集中開始時に画面の解析状態をreadyへ戻す。
-      onReady()
-    }
 
     let disposed = false
     let timerId = 0
@@ -226,5 +228,5 @@ export function usePoseScoring({
       window.clearTimeout(timerId)
       samples = []
     }
-  }, [enabled, onAwayDetected, onBaselineChange, onError, onIntervalComplete, onReady, sessionId, videoRef])
+  }, [enabled, onAwayDetected, onBaselineChange, onError, onIntervalComplete, sessionId, videoRef])
 }
