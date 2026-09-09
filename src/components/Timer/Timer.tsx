@@ -8,6 +8,7 @@ import type {
 import './Timer.css'
 
 type TimerProps = {
+  autoBreakRequest?: number
   autoPauseRequest?: number
   disabled?: boolean
   initialElapsedMs?: number
@@ -71,6 +72,7 @@ function MoonIcon() {
 }
 
 export function Timer({
+  autoBreakRequest = 0,
   autoPauseRequest = 0,
   disabled = false,
   initialElapsedMs = 0,
@@ -92,6 +94,7 @@ export function Timer({
   const logIdRef = useRef(initialLogId)
   const wasRunningBeforeExitRef = useRef<boolean | null>(null)
   const cancelExitButtonRef = useRef<HTMLButtonElement>(null)
+  const handledAutoBreakRequestRef = useRef(autoBreakRequest)
   const handledAutoPauseRequestRef = useRef(autoPauseRequest)
   const [activeStartedAt, setActiveStartedAt] = useState<number | null>(null)
   const [durations, setDurations] = useState<TimerDurations>(initialDurations)
@@ -191,7 +194,7 @@ export function Timer({
     }
   }, [autoPauseRequest, isRunning, mode, pauseTimer])
 
-  const handleBreakToggle = () => {
+  const handleBreakToggle = useCallback(() => {
     // 離席中は休憩・集中の内部モードを変更しない。
     if (!isRunning) {
       return
@@ -208,7 +211,18 @@ export function Timer({
     syncClock(now)
     setMode(nextMode)
     emitLog(nextMode, now)
-  }
+  }, [commitActiveTime, emitLog, isRunning, mode, syncClock])
+
+  useEffect(() => {
+    if (autoBreakRequest === handledAutoBreakRequestRef.current) return
+    handledAutoBreakRequestRef.current = autoBreakRequest
+
+    // 集中切れ通知のボタンも手動の休憩切替と同じ経路で時間とログを確定する。
+    if (isRunning && mode === 'focus') {
+      // oxlint-disable-next-line react/set-state-in-effect -- 外部イベントをタイマー内部の休憩切替へ同期する。
+      handleBreakToggle()
+    }
+  }, [autoBreakRequest, handleBreakToggle, isRunning, mode])
 
   const handleExitRequest = () => {
     const now = Date.now()

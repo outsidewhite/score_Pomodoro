@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button.tsx'
 import { getTimerStatus } from '../../components/ui/statusTone.ts'
 import type { ModelStatus } from '../../features/camera/cameraTypes.ts'
 import { usePoseScoring } from '../../features/pose/usePoseScoring.ts'
+import { useFocusDropNotification } from '../../features/scoring/useFocusDropNotification.ts'
 import type {
   PostureBaseline,
   ScoreIntervalResult,
@@ -75,7 +76,17 @@ export function MeasurementPage({
   const [modelReloadRequest, setModelReloadRequest] = useState(0)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [timerMode, setTimerMode] = useState<TimerMode>('away')
+  const [autoBreakRequest, setAutoBreakRequest] = useState(0)
   const [autoPauseRequest, setAutoPauseRequest] = useState(0)
+  const handleFocusDropBreakRequest = useCallback(() => {
+    setAutoBreakRequest((request) => request + 1)
+  }, [])
+  const {
+    handleFocusStateChange,
+    handleIntervalComplete: handleFocusDropIntervalComplete,
+  } = useFocusDropNotification({
+    onBreakRequest: handleFocusDropBreakRequest,
+  })
   const initialElapsedMs = Math.max(
     elapsedMs,
     getMeasuredWorkDuration(
@@ -164,9 +175,10 @@ export function MeasurementPage({
   }, [])
   const handleTimerModeChange = useCallback((nextMode: TimerMode) => {
     setTimerMode(nextMode)
+    handleFocusStateChange(nextMode === 'focus')
     setAnalysisError(null)
     toast.dismiss(POSE_ANALYSIS_ERROR_TOAST_ID)
-  }, [])
+  }, [handleFocusStateChange])
   const handleAwayDetected = useCallback(() => {
     setAutoPauseRequest((request) => request + 1)
     toast.warning('離席を検出したためタイマーを停止しました', {
@@ -181,8 +193,9 @@ export function MeasurementPage({
     } else if (result.calibrationSucceeded) {
       toast.success('基準姿勢を保存しました', { id: CALIBRATION_TOAST_ID })
     }
+    handleFocusDropIntervalComplete(result)
     onScoreUpdate(result)
-  }, [onScoreUpdate])
+  }, [handleFocusDropIntervalComplete, onScoreUpdate])
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
@@ -319,6 +332,7 @@ export function MeasurementPage({
 
               <div className="timer-panel__clock">
                 <Timer
+                  autoBreakRequest={autoBreakRequest}
                   autoPauseRequest={autoPauseRequest}
                   disabled={status !== 'measuring'}
                   initialElapsedMs={initialElapsedMs}
