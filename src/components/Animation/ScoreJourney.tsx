@@ -52,13 +52,15 @@ const MOTION_STATE_LABELS: Record<JourneyMotionState, string> = {
 const SHOW_DEBUG_CONTROLS = import.meta.env.DEV
 
 export function ScoreJourney({ journey, motionState, score }: ScoreJourneyProps) {
-  const previousScoreRef = useRef(score)
+  const safeScore = Number.isFinite(score) ? Math.max(0, score) : 0
+  const previousScoreRef = useRef(safeScore)
+  const previousJourneyRef = useRef(journey)
   const [animationKey, setAnimationKey] = useState(0)
+  const [isArrivalAnimating, setIsArrivalAnimating] = useState(false)
   const [debugAnimationMode, setDebugAnimationMode] =
     useState<DebugAnimationMode>('auto')
   const [debugMotionMode, setDebugMotionMode] =
     useState<DebugMotionMode>('auto')
-  const safeScore = Number.isFinite(score) ? Math.max(0, score) : 0
   const position = getJourneyPosition(safeScore, journey)
   // デバッグ指定がある間だけ、スコアから求めたステージを表示上書きする。
   const displayedArea =
@@ -69,17 +71,28 @@ export function ScoreJourney({ journey, motionState, score }: ScoreJourneyProps)
   const displayedMotionState =
     debugMotionMode === 'auto' ? motionState : debugMotionMode
   const isPreparationStage = displayedMotionState === 'preparing'
-  const progress = position.destination
-    ? Math.min(position.progressScore / position.requiredScore, 1)
-    : 1
+  const progress = Math.min(position.progressScore / position.requiredScore, 1)
 
   useEffect(() => {
-    if (score > previousScoreRef.current) {
-      // スコアが増えたときだけ、キャラクターの到着アニメーションを再生する。
-      setAnimationKey((currentKey) => currentKey + 1)
+    if (journey !== previousJourneyRef.current) {
+      previousJourneyRef.current = journey
+      previousScoreRef.current = safeScore
+      setIsArrivalAnimating(false)
+      return
     }
-    previousScoreRef.current = score
-  }, [score])
+
+    const previousPosition = getJourneyPosition(
+      previousScoreRef.current,
+      journey,
+    )
+    // 通常の目的地を越えた場合だけ到着演出を行い、探索レベル更新では再生しない。
+    const arrivedAtDestination =
+      safeScore > previousScoreRef.current &&
+      position.currentPoint.requiredScore >
+        previousPosition.currentPoint.requiredScore
+    setIsArrivalAnimating(arrivedAtDestination)
+    previousScoreRef.current = safeScore
+  }, [journey, position.currentPoint.requiredScore, safeScore])
 
   const journeyStyle = {
     '--journey-progress': progress,
@@ -91,15 +104,22 @@ export function ScoreJourney({ journey, motionState, score }: ScoreJourneyProps)
     space: '宇宙ステージ',
   }[displayedArea]
   const displayedStageName = isPreparationStage ? '準備ステージ' : stageName
+  const displayedLocation = isPreparationStage
+    ? '自宅'
+    : position.explorationLevel === null
+      ? position.currentPoint.name
+      : `探索レベル ${position.explorationLevel}`
 
   const handleDebugAnimationChange = (mode: DebugAnimationMode) => {
     setDebugAnimationMode(mode)
+    setIsArrivalAnimating(false)
     // 同じモードを再選択した場合も先頭から動きを確認できるようにする。
     setAnimationKey((currentKey) => currentKey + 1)
   }
 
   const handleDebugMotionChange = (mode: DebugMotionMode) => {
     setDebugMotionMode(mode)
+    setIsArrivalAnimating(false)
     setAnimationKey((currentKey) => currentKey + 1)
   }
 
@@ -111,7 +131,7 @@ export function ScoreJourney({ journey, motionState, score }: ScoreJourneyProps)
       <div className="score-journey__header">
         <div>
           <span>FOCUS JOURNEY</span>
-          <strong>{isPreparationStage ? '自宅' : position.currentPoint.name}</strong>
+          <strong>{displayedLocation}</strong>
         </div>
         <div className="score-journey__status">
           <span>{displayedStageName}</span>
@@ -123,7 +143,12 @@ export function ScoreJourney({ journey, motionState, score }: ScoreJourneyProps)
 
       <div
         key={`${displayedArea}-${animationKey}`}
-        className={`score-journey__scene score-journey__scene--${displayedArea} score-journey__scene--motion-${displayedMotionState}`}
+        className={`score-journey__scene score-journey__scene--${displayedArea} score-journey__scene--motion-${displayedMotionState}${isArrivalAnimating ? ' score-journey__scene--arrival' : ''}`}
+        onAnimationEnd={(event) => {
+          if (event.target === event.currentTarget) {
+            setIsArrivalAnimating(false)
+          }
+        }}
         style={journeyStyle}
       >
         <JourneyScene area={displayedArea} motionState={displayedMotionState} />
@@ -140,7 +165,7 @@ export function ScoreJourney({ journey, motionState, score }: ScoreJourneyProps)
             ? '自宅で作業を始める準備をしています'
             : position.destination
               ? `次の目的地「${position.destination.name}」まであと ${position.requiredScore - position.progressScore} 点`
-              : `現在地「${position.currentPoint.name}」・累積 ${safeScore.toLocaleString('ja-JP')} 点`}
+              : `宇宙探索中・次のレベルまであと ${position.requiredScore - position.progressScore} 点`}
         </span>
         <strong>{MOTION_STATE_LABELS[displayedMotionState]}</strong>
       </div>

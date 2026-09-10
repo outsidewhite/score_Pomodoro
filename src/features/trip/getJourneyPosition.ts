@@ -34,10 +34,13 @@ export function getJourneyPosition(
   const destination = points[currentIndex + 1] ?? null
 
   if (!destination) {
+    const explorationScore = safeScore - currentPoint.requiredScore
     return {
       currentPoint,
       destination: null,
-      progressScore: safeScore - currentPoint.requiredScore,
+      explorationLevel:
+        Math.floor(explorationScore / SCORE_PER_DESTINATION) + 1,
+      progressScore: explorationScore % SCORE_PER_DESTINATION,
       requiredScore: SCORE_PER_DESTINATION,
     }
   }
@@ -46,6 +49,7 @@ export function getJourneyPosition(
   return {
     currentPoint,
     destination,
+    explorationLevel: null,
     progressScore: safeScore - currentPoint.requiredScore,
     requiredScore: destination.requiredScore - currentPoint.requiredScore,
   }

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { createJourney } from '../../features/trip/createJourney.ts'
@@ -83,5 +83,41 @@ describe('ScoreJourney', () => {
       .toBeInTheDocument()
     expect(container.querySelector('.score-journey__progress')).not
       .toBeInTheDocument()
+  })
+
+  it('45点の目的地境界を越えた場合だけ到着演出を開始する', async () => {
+    const { container, rerender } = render(
+      <ScoreJourney journey={journey} motionState="score2" score={44} />,
+    )
+    const scene = container.querySelector('.score-journey__scene')
+    expect(scene).not.toHaveClass('score-journey__scene--arrival')
+
+    rerender(
+      <ScoreJourney journey={journey} motionState="score2" score={45} />,
+    )
+    await waitFor(() =>
+      expect(scene).toHaveClass('score-journey__scene--arrival'),
+    )
+
+    // 同じスコアの再描画では要素を作り直さず、到着演出を再開しない。
+    rerender(
+      <ScoreJourney journey={journey} motionState="score2" score={45} />,
+    )
+    expect(container.querySelector('.score-journey__scene')).toBe(scene)
+  })
+
+  it('最後の目的地以降は探索レベルを表示し、レベル更新で到着演出を行わない', async () => {
+    const { container, rerender } = render(
+      <ScoreJourney journey={journey} motionState="score2" score={1_035} />,
+    )
+    expect(screen.getByText('探索レベル 1')).toBeInTheDocument()
+
+    rerender(
+      <ScoreJourney journey={journey} motionState="score2" score={1_080} />,
+    )
+    await screen.findByText('探索レベル 2')
+    expect(container.querySelector('.score-journey__scene')).not.toHaveClass(
+      'score-journey__scene--arrival',
+    )
   })
 })

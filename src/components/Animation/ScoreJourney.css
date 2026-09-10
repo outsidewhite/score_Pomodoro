@@ -59,8 +59,11 @@
   border: 1px solid #000;
   border-radius: 0;
   background: #fff;
-  animation: score-journey-scene-arrive 600ms ease-out both;
   isolation: isolate;
+}
+
+.score-journey__scene--arrival {
+  animation: score-journey-scene-arrive 1.6s ease-out both;
 }
 
 .score-journey__scene > svg {

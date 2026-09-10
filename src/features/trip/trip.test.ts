@@ -36,6 +36,23 @@ describe('getJourneyPosition', () => {
     expect(position.requiredScore).toBe(45)
   })
 
+  it('最後の目的地以降は45点ごとに探索レベルを上げる', () => {
+    expect(getJourneyPosition(1_034, journey).explorationLevel).toBeNull()
+    expect(getJourneyPosition(1_035, journey)).toMatchObject({
+      explorationLevel: 1,
+      progressScore: 0,
+      requiredScore: 45,
+    })
+    expect(getJourneyPosition(1_079, journey)).toMatchObject({
+      explorationLevel: 1,
+      progressScore: 44,
+    })
+    expect(getJourneyPosition(1_080, journey)).toMatchObject({
+      explorationLevel: 2,
+      progressScore: 0,
+    })
+  })
+
   it('不正な点数は0点として現在地を計算する', () => {
     expect(getJourneyPosition(-1, journey).currentPoint.name).toBe('スタート')
     expect(getJourneyPosition(Number.NaN, journey).currentPoint.name).toBe('スタート')

@@ -21,6 +21,7 @@ export type Journey = {
 export type JourneyPosition = {
   readonly currentPoint: RoutePoint
   readonly destination: RoutePoint | null
+  readonly explorationLevel: number | null
   readonly progressScore: number
   readonly requiredScore: number
 }

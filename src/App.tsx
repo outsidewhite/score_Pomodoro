@@ -19,6 +19,11 @@ import {
 } from './features/scoring/scoringSession.ts'
 import { clearTimerSession } from './features/session/timerSession.ts'
 import { createJourney } from './features/trip/createJourney.ts'
+import {
+  clearJourneySession,
+  loadJourneySession,
+  saveJourneySession,
+} from './features/trip/journeySession.ts'
 import type { Journey } from './features/trip/types.ts'
 import { MeasurementPage } from './pages/measurement/MeasurementPage.tsx'
 import { ResultPage } from './pages/result/ResultPage.tsx'
@@ -69,7 +74,9 @@ function App() {
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [isPreparingCamera, setIsPreparingCamera] = useState(false)
-  const [journey, setJourney] = useState<Journey>(() => createJourney())
+  const [journey, setJourney] = useState<Journey>(
+    () => loadJourneySession(scoringSession.sessionId) ?? createJourney(),
+  )
   const [cameraStopRequest, setCameraStopRequest] = useState(0)
   const cameraStreamRef = useRef<MediaStream | null>(null)
   const isPreparingCameraRef = useRef(false)
@@ -82,6 +89,12 @@ function App() {
     // 完了区間を毎回保存し、基準姿勢を除く同じセッションを再読み込み後に復元する。
     saveScoringSession(scoringSession)
   }, [scoringSession])
+
+  useEffect(() => {
+    if (page !== 'measurement') return
+    // セッション開始時に選んだルートを保存し、再読み込み後も同じ旅を続ける。
+    saveJourneySession(scoringSession.sessionId, journey)
+  }, [journey, page, scoringSession.sessionId])
 
   // 計測終了後にカメラが動き続けないよう、保持中の全トラックをまとめて終了する。
   const stopCamera = useCallback(() => {
@@ -175,6 +188,7 @@ function App() {
     if (!stream) return
 
     setSettings(nextSettings)
+    saveJourneySession(scoringSession.sessionId, journey)
     setScoringSession((currentSession) => ({
       ...currentSession,
       targetMinutes: nextSettings.targetMinutes,
@@ -211,6 +225,7 @@ function App() {
     stopCamera()
     clearScoringSession()
     clearTimerSession()
+    clearJourneySession()
     const nextSession = createScoringSession(settings.targetMinutes)
     setScoringSession(nextSession)
     setJourney(createJourney())
