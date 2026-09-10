@@ -14,6 +14,14 @@ class FakeTrack extends EventTarget {
     this.readyState = 'ended'
     this.dispatchEvent(new Event('ended'))
   }
+
+  mute() {
+    this.dispatchEvent(new Event('mute'))
+  }
+
+  unmute() {
+    this.dispatchEvent(new Event('unmute'))
+  }
 }
 
 function createFakeStream(tracks: FakeTrack[]) {
@@ -75,5 +83,51 @@ describe('watchCameraStream', () => {
     watchCameraStream({ onDisconnect, stream: createFakeStream([track]) })
 
     expect(onDisconnect).toHaveBeenCalledTimes(1)
+  })
+
+  test('muteが猶予時間を超えて続いた場合は切断として扱う', () => {
+    vi.useFakeTimers()
+    try {
+      const track = new FakeTrack()
+      const onDisconnect = vi.fn()
+      watchCameraStream({
+        muteGraceMs: 3_000,
+        onDisconnect,
+        stream: createFakeStream([track]),
+      })
+
+      track.mute()
+      vi.advanceTimersByTime(2_999)
+      expect(onDisconnect).not.toHaveBeenCalled()
+
+      vi.advanceTimersByTime(1)
+      expect(onDisconnect).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('muteが猶予時間内に解除された場合は監視を継続する', () => {
+    vi.useFakeTimers()
+    try {
+      const track = new FakeTrack()
+      const onDisconnect = vi.fn()
+      watchCameraStream({
+        muteGraceMs: 3_000,
+        onDisconnect,
+        stream: createFakeStream([track]),
+      })
+
+      track.mute()
+      vi.advanceTimersByTime(2_000)
+      track.unmute()
+      vi.advanceTimersByTime(2_000)
+
+      expect(onDisconnect).not.toHaveBeenCalled()
+      track.end()
+      expect(onDisconnect).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { CAMERA_DISCONNECTED_MESSAGE } from './features/camera/useCameraDisconnect.ts'
 import { createScoringSession, saveScoringSession } from './features/scoring/scoringSession.ts'
 import App from './App.tsx'
 
@@ -15,6 +16,7 @@ vi.mock('./pages/measurement/MeasurementPage.tsx', () => ({
     cameraError: string | null
     cameraStopRequest: number
     cameraStream: MediaStream | null
+    onCameraFreeze: () => void
     onCameraRetry: () => void
     status: string
   }) => {
@@ -26,6 +28,9 @@ vi.mock('./pages/measurement/MeasurementPage.tsx', () => ({
         <span data-testid="camera-stop-request">{props.cameraStopRequest}</span>
         <button type="button" onClick={props.onCameraRetry}>
           カメラを再取得
+        </button>
+        <button type="button" onClick={props.onCameraFreeze}>
+          映像フリーズを通知
         </button>
       </div>
     )
@@ -150,6 +155,19 @@ describe('計測中のカメラ切断', () => {
     // 終了済みストリームを使い回さず、新しく取得したストリームで再開する。
     expect(acquiredTracks).toHaveLength(2)
     expect(screen.getByTestId('camera-stop-request')).toHaveTextContent('1')
+  })
+
+  test('映像フリーズの通知でもタイマー停止と再取得待ちへ移る', async () => {
+    const user = userEvent.setup()
+    mockCameraTracks()
+    render(<App />)
+
+    await screen.findByText('measuring')
+    await user.click(screen.getByRole('button', { name: '映像フリーズを通知' }))
+
+    await screen.findByText('preparing')
+    expect(screen.getByTestId('camera-stop-request')).toHaveTextContent('1')
+    expect(screen.getByText(CAMERA_DISCONNECTED_MESSAGE)).toBeInTheDocument()
   })
 
   test('切断しても保存済みの完了区間と基準姿勢は破棄しない', async () => {

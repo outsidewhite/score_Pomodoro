@@ -8,6 +8,8 @@ import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import { getTimerStatus } from '../../components/ui/statusTone.ts'
 import type { ModelStatus } from '../../features/camera/cameraTypes.ts'
+import { showCameraDisconnectedToast } from '../../features/camera/useCameraDisconnect.ts'
+import { watchVideoPlayback } from '../../features/camera/videoPlaybackMonitor.ts'
 import { usePoseScoring } from '../../features/pose/usePoseScoring.ts'
 import { useFocusDropNotification } from '../../features/scoring/useFocusDropNotification.ts'
 import type {
@@ -39,6 +41,7 @@ type MeasurementPageProps = {
   nextIntervalNumber: number
   onBaselineChange: (baseline: PostureBaseline) => void
   onCameraRetry: () => void
+  onCameraFreeze?: () => void
   onFinish: () => void
   onScoreUpdate: (result: ScoreIntervalResult) => void
   originalScore: number
@@ -58,6 +61,7 @@ export function MeasurementPage({
   nextIntervalNumber,
   onBaselineChange,
   onCameraRetry,
+  onCameraFreeze,
   onFinish,
   onScoreUpdate,
   originalScore,
@@ -210,6 +214,20 @@ export function MeasurementPage({
       video.srcObject = null
     }
   }, [cameraStream])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!cameraStream || !video || !onCameraFreeze) return
+
+    // トラックが生きたまま映像だけ止まるケースも、通常の切断処理へ合流させる。
+    return watchVideoPlayback({
+      onFreeze: () => {
+        showCameraDisconnectedToast()
+        onCameraFreeze()
+      },
+      video,
+    })
+  }, [cameraStream, onCameraFreeze])
 
   useEffect(() => () => {
     // 読み込み途中で画面を離れた場合に、待機中の通知を次画面へ残さない。

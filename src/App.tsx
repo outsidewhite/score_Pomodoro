@@ -224,6 +224,7 @@ function App() {
           nextIntervalNumber={scoringSession.nextIntervalNumber}
           onBaselineChange={handleBaselineChange}
           onCameraRetry={handleCameraRetry}
+          onCameraFreeze={handleCameraDisconnect}
           onFinish={handleFinish}
           onScoreUpdate={handleScoreUpdate}
           originalScore={INITIAL_SCORE}

@@ -8,6 +8,14 @@ export const CAMERA_DISCONNECTED_TOAST_ID = 'camera-disconnected'
 export const CAMERA_DISCONNECTED_MESSAGE =
   'カメラが切断されました。接続を確認して、カメラを再取得してください。'
 
+// 切断原因がトラック終了でも映像フリーズでも、同じ通知へまとめる。
+export function showCameraDisconnectedToast() {
+  toast.error('カメラが切断されました', {
+    description: CAMERA_DISCONNECTED_MESSAGE,
+    id: CAMERA_DISCONNECTED_TOAST_ID,
+  })
+}
+
 type UseCameraDisconnectOptions = {
   onDisconnect: () => void
   stream: MediaStream | null
@@ -35,10 +43,7 @@ export function useCameraDisconnect({
     // 監視対象はストリームだけに依存させ、コールバックの再生成で二重登録しない。
     return watchCameraStream({
       onDisconnect: () => {
-        toast.error('カメラが切断されました', {
-          description: CAMERA_DISCONNECTED_MESSAGE,
-          id: CAMERA_DISCONNECTED_TOAST_ID,
-        })
+        showCameraDisconnectedToast()
         onDisconnectRef.current()
       },
       stream,
