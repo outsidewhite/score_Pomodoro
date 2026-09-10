@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { getJourneyPosition } from '../../features/trip/getJourneyPosition.ts'
 import type { Journey } from '../../features/trip/types.ts'
+import { JourneyScene } from './JourneyScenes.tsx'
 import './ScoreJourney.css'
 
 type ScoreJourneyProps = {
@@ -29,6 +30,12 @@ export function ScoreJourney({ journey, score }: ScoreJourneyProps) {
     '--journey-progress': progress,
   } as CSSProperties
 
+  const stageName = {
+    japan: '日本ステージ',
+    world: '世界ステージ',
+    space: '宇宙ステージ',
+  }[position.currentPoint.area]
+
   return (
     <section className="score-journey" aria-label="スコアの旅">
       <div className="score-journey__header">
@@ -36,18 +43,20 @@ export function ScoreJourney({ journey, score }: ScoreJourneyProps) {
           <span>FOCUS JOURNEY</span>
           <strong>{position.currentPoint.name}</strong>
         </div>
-        <small>{Math.round(progress * 100)}%</small>
+        <div className="score-journey__status">
+          <span>{stageName}</span>
+          <small>{Math.round(progress * 100)}%</small>
+        </div>
       </div>
 
-      <div className="score-journey__scene" style={journeyStyle}>
-        <div className="score-journey__sky" aria-hidden="true">
-          <span className="score-journey__cloud score-journey__cloud--first" />
-          <span className="score-journey__cloud score-journey__cloud--second" />
-        </div>
-        <div className="score-journey__track" aria-hidden="true">
-          <span className="score-journey__track-progress" />
-          <span key={animationKey} className="score-journey__traveler">●</span>
-          <span className="score-journey__destination">⚑</span>
+      <div
+        key={`${position.currentPoint.area}-${animationKey}`}
+        className={`score-journey__scene score-journey__scene--${position.currentPoint.area}`}
+        style={journeyStyle}
+      >
+        <JourneyScene area={position.currentPoint.area} />
+        <div className="score-journey__progress" aria-hidden="true">
+          <span className="score-journey__progress-fill" />
         </div>
       </div>
 

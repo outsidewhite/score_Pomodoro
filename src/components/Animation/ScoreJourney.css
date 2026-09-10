@@ -2,9 +2,11 @@
   display: grid;
   min-height: 0;
   padding: var(--space-5);
-  border: 1px solid var(--color-score);
-  border-radius: var(--app-panel-radius);
-  background: var(--color-score-soft);
+  border: 1px solid #000;
+  border-radius: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  color: #000;
+  background: #fff;
   box-sizing: border-box;
 }
 
@@ -15,13 +17,13 @@
   gap: var(--space-3);
 }
 
-.score-journey__header div {
+.score-journey__header > div:first-child {
   display: grid;
   gap: 2px;
 }
 
 .score-journey__header span {
-  color: var(--color-score-strong);
+  color: #000;
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.14em;
@@ -32,103 +34,201 @@
 }
 
 .score-journey__header small {
-  color: var(--color-score-strong);
+  color: #000;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
 }
 
+.score-journey__status {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.score-journey__status span {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
 .score-journey__scene {
   position: relative;
   overflow: hidden;
-  min-height: 72px;
+  min-height: 0;
   margin-top: var(--space-3);
-  border-radius: var(--radius-md);
-  background: linear-gradient(#dff3f4 0 62%, #d7e8cf 62%);
+  border: 1px solid #000;
+  border-radius: 0;
+  background: #fff;
+  animation: score-journey-scene-arrive 600ms ease-out both;
+  isolation: isolate;
 }
 
-.score-journey__sky,
-.score-journey__track {
+.score-journey__scene > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.score-journey__progress {
   position: absolute;
-  inset: 0;
-}
-
-.score-journey__cloud {
-  position: absolute;
-  width: 28px;
-  height: 8px;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 75%);
-}
-
-.score-journey__cloud--first {
-  top: 14px;
-  left: 18%;
-}
-
-.score-journey__cloud--second {
-  top: 25px;
-  right: 18%;
-  transform: scale(0.7);
-}
-
-.score-journey__track::before,
-.score-journey__track-progress {
-  position: absolute;
-  right: 18px;
-  bottom: 19px;
-  left: 18px;
+  right: 12px;
+  bottom: 8px;
+  left: 12px;
+  overflow: hidden;
   height: 4px;
-  border-radius: 999px;
-  content: '';
+  border: 1px solid #000;
+  border-radius: 0;
+  background: #fff;
 }
 
-.score-journey__track::before {
-  background: rgb(85 118 99 / 22%);
-}
-
-.score-journey__track-progress {
-  width: calc((100% - 36px) * var(--journey-progress));
-  background: var(--color-score-strong);
+.score-journey__progress-fill {
+  display: block;
+  width: calc(100% * var(--journey-progress));
+  height: 100%;
+  background: #000;
   transition: width 700ms ease-out;
-}
-
-.score-journey__traveler {
-  position: absolute;
-  bottom: 11px;
-  left: calc(18px + (100% - 52px) * var(--journey-progress));
-  color: var(--color-primary);
-  font-size: 17px;
-  line-height: 1;
-  text-shadow: 0 2px 0 #fff;
-  transition: left 700ms ease-out;
-  animation: score-journey-arrive 700ms ease-out;
-}
-
-.score-journey__destination {
-  position: absolute;
-  right: 13px;
-  bottom: 18px;
-  color: var(--color-score-strong);
-  font-size: 22px;
 }
 
 .score-journey__caption {
   margin: var(--space-2) 0 0;
-  color: var(--color-text-muted);
+  color: #000;
   font-size: 10px;
   text-align: right;
 }
 
-@keyframes score-journey-arrive {
-  45% {
-    transform: translateY(-7px) scale(1.12);
+/* 背景を複製した960px幅で描き、半分だけ動かして継ぎ目なく循環させる。 */
+.journey-scene__scroll {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.journey-scene__scroll--japan-far {
+  animation: journey-scroll-left 24s linear infinite;
+}
+
+.journey-scene__scroll--japan-near {
+  animation: journey-scroll-left 7s linear infinite;
+}
+
+.journey-scene__scroll--world-far {
+  animation: journey-scroll-left 26s linear infinite;
+}
+
+.journey-scene__scroll--world-city {
+  animation: journey-scroll-left 19s linear infinite;
+}
+
+.journey-scene__scroll--world-near {
+  animation: journey-scroll-left 11s linear infinite;
+}
+
+.journey-scene__scroll--space-far {
+  animation: journey-scroll-left 25s linear infinite;
+}
+
+.journey-scene__scroll--space-mid {
+  animation: journey-scroll-left 13s linear infinite;
+}
+
+.journey-scene__scroll--space-planet {
+  animation: journey-scroll-left 18s linear infinite;
+}
+
+/* 乗り物は中央付近に固定し、微細な上下動だけで巡航感を出す。 */
+.journey-scene__vehicle {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.journey-scene__train {
+  animation: journey-train-running 520ms ease-in-out infinite alternate;
+}
+
+.journey-scene__plane {
+  animation: journey-floating 2.6s ease-in-out infinite;
+}
+
+.journey-scene__spaceship {
+  animation: journey-floating 3.2s ease-in-out infinite;
+}
+
+.journey-scene__wheel {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: journey-wheel-turn 900ms linear infinite;
+}
+
+.journey-scene__contrail {
+  animation: journey-contrail 1.2s linear infinite;
+}
+
+.journey-scene__flame {
+  transform-box: fill-box;
+  transform-origin: right center;
+}
+
+.journey-scene__flame--outer {
+  animation: journey-flame-pulse 480ms ease-in-out infinite alternate;
+}
+
+.journey-scene__flame--inner {
+  animation: journey-flame-pulse 320ms ease-in-out infinite alternate-reverse;
+}
+
+@keyframes journey-scroll-left {
+  to {
+    transform: translateX(-480px);
+  }
+}
+
+@keyframes journey-train-running {
+  to {
+    transform: translateY(1.5px);
+  }
+}
+
+@keyframes journey-floating {
+  50% {
+    transform: translateY(-4px) rotate(-0.5deg);
+  }
+}
+
+@keyframes journey-wheel-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes journey-contrail {
+  to {
+    stroke-dashoffset: 26;
+  }
+}
+
+@keyframes journey-flame-pulse {
+  to {
+    transform: scaleX(0.7);
+    opacity: 0.74;
+  }
+}
+
+@keyframes score-journey-scene-arrive {
+  from {
+    opacity: 0.72;
+    transform: translateY(3px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .score-journey__track-progress,
-  .score-journey__traveler {
+  .score-journey__scene,
+  .score-journey__progress-fill,
+  .journey-scene__scroll,
+  .journey-scene__vehicle,
+  .journey-scene__wheel,
+  .journey-scene__contrail,
+  .journey-scene__flame {
     transition: none;
     animation: none;
   }
