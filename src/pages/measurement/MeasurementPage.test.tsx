@@ -8,6 +8,7 @@ import {
   saveTimerSession,
 } from '../../features/session/timerSession.ts'
 import { createJourney } from '../../features/trip/createJourney.ts'
+import type { MeasurementStatus } from '../../shared/types/measurement.ts'
 import { MeasurementPage } from './MeasurementPage.tsx'
 
 const usePoseScoringMock = vi.hoisted(() => vi.fn())
@@ -17,20 +18,36 @@ vi.mock('../../features/pose/usePoseScoring.ts', () => ({
 }))
 
 type PoseScoringCallbacks = {
+  enabled: boolean
   onModelLoadError: (message: string) => void
   onModelLoadStart: () => void
   onModelReady: () => void
   reloadRequest: number
 }
 
-function renderMeasurementPage() {
-  render(
+type RenderOverrides = {
+  cameraError?: string | null
+  cameraStopRequest?: number
+  cameraStream?: MediaStream | null
+}
+
+function measurementPageElement(
+  status: MeasurementStatus = 'measuring',
+  overrides: RenderOverrides = {},
+) {
+  const {
+    cameraError = null,
+    cameraStopRequest = 0,
+    cameraStream = {} as MediaStream,
+  } = overrides
+  return (
     <>
       <AppToaster />
       <MeasurementPage
         baseline={null}
-        cameraError={null}
-        cameraStream={{} as MediaStream}
+        cameraError={cameraError}
+        cameraStopRequest={cameraStopRequest}
+        cameraStream={cameraStream}
         elapsedMs={0}
         isPreparingCamera={false}
         journey={createJourney(() => 0)}
@@ -43,29 +60,36 @@ function renderMeasurementPage() {
         originalScore={0}
         scoreIncrement={0}
         sessionId="test-session"
-        status="measuring"
+        status={status}
       />
-    </>,
+    </>
   )
+}
+
+function renderMeasurementPage(
+  status: MeasurementStatus = 'measuring',
+  overrides: RenderOverrides = {},
+) {
+  return render(measurementPageElement(status, overrides))
 }
 
 function getLatestScoringCallbacks() {
   return usePoseScoringMock.mock.calls.at(-1)?.[0] as PoseScoringCallbacks
 }
 
+beforeEach(() => {
+  usePoseScoringMock.mockClear()
+  window.sessionStorage.clear()
+  // jsdomでは映像再生を実行できないため、準備済みPromiseとして置き換える。
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
+})
+
+afterEach(() => {
+  toast.dismiss()
+  vi.restoreAllMocks()
+})
+
 describe('MeasurementPageのモデル準備', () => {
-  beforeEach(() => {
-    usePoseScoringMock.mockClear()
-    window.sessionStorage.clear()
-    // jsdomでは映像再生を実行できないため、準備済みPromiseとして置き換える。
-    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue()
-  })
-
-  afterEach(() => {
-    toast.dismiss()
-    vi.restoreAllMocks()
-  })
-
   test('読み込み完了までタイマー開始を無効化して通知する', async () => {
     renderMeasurementPage()
     const callbacks = getLatestScoringCallbacks()
@@ -121,5 +145,106 @@ describe('MeasurementPageのモデル準備', () => {
     const sessionLog = screen.getByRole('region', { name: 'セッションログ' })
     expect(within(sessionLog).getByText('集中')).toBeInTheDocument()
     expect(within(sessionLog).getByText('離席')).toBeInTheDocument()
+
+    act(() => getLatestScoringCallbacks().onModelReady())
+    expect(
+      screen.getByRole('button', { name: 'タイマーを開始する' }),
+    ).toHaveAttribute('aria-pressed', 'false')
+  })
+})
+
+// ランプ（ヘッダー）とタイマーの表示が、同じ状態を指していることを確認する。
+function expectStatus(label: string, tone: string, timerMode: string) {
+  const status = screen.getByRole('status')
+  expect(status).toHaveTextContent(label)
+  expect(status).toHaveClass(`app-header__status--${tone}`)
+  expect(
+    screen.getByText(/^\d\d:\d\d:\d\d$/).closest('.session-timer'),
+  ).toHaveClass(`session-timer--${timerMode}`)
+}
+
+describe('MeasurementPageの状態表示', () => {
+  test('タイマー開始前は離席中として表示する', () => {
+    renderMeasurementPage()
+
+    expectStatus('離席中', 'away', 'away')
+  })
+
+  test('タイマーの開始・休憩・停止に合わせて状態表示が切り替わる', async () => {
+    const user = userEvent.setup()
+    renderMeasurementPage()
+    // タイマーはモデルの読み込みが完了してから開始できる。
+    act(() => getLatestScoringCallbacks().onModelReady())
+
+    await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+    expectStatus('計測中', 'measuring', 'focus')
+
+    await user.click(screen.getByRole('button', { name: '休憩に入る' }))
+    expectStatus('休憩中', 'break', 'break')
+
+    await user.click(screen.getByRole('button', { name: '集中に戻る' }))
+    expectStatus('計測中', 'measuring', 'focus')
+
+    await user.click(screen.getByRole('button', { name: 'タイマーを停止する' }))
+    expectStatus('離席中', 'away', 'away')
+  })
+
+  test('計測開始前の状態では計測準備中として表示する', () => {
+    renderMeasurementPage('preparing')
+
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent('計測準備中')
+    expect(status).toHaveClass('app-header__status--setup')
+  })
+})
+
+
+describe('MeasurementPageのカメラ切断', () => {
+  test('カメラ切断の停止要求でタイマーを停止する', async () => {
+    const user = userEvent.setup()
+    const { rerender } = renderMeasurementPage()
+    act(() => getLatestScoringCallbacks().onModelReady())
+
+    await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+    expectStatus('計測中', 'measuring', 'focus')
+
+    rerender(measurementPageElement('measuring', { cameraStopRequest: 1 }))
+
+    await screen.findByRole('button', { name: 'タイマーを開始する' })
+    expectStatus('離席中', 'away', 'away')
+  })
+
+  test('カメラ切断後は姿勢解析を停止する', async () => {
+    const user = userEvent.setup()
+    const { rerender } = renderMeasurementPage()
+    act(() => getLatestScoringCallbacks().onModelReady())
+
+    await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+    await waitFor(() => expect(getLatestScoringCallbacks().enabled).toBe(true))
+
+    // 切断でカメラが未接続へ戻ると、計測準備中として解析を止める。
+    rerender(
+      measurementPageElement('preparing', {
+        cameraStopRequest: 1,
+        cameraStream: null,
+      }),
+    )
+
+    await waitFor(() => expect(getLatestScoringCallbacks().enabled).toBe(false))
+  })
+
+  test('カメラ切断時は既存の再取得操作を表示する', () => {
+    renderMeasurementPage('preparing', {
+      cameraError: 'カメラが切断されました。接続を確認して、カメラを再取得してください。',
+      cameraStopRequest: 1,
+      cameraStream: null,
+    })
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'カメラが切断されました。接続を確認して、カメラを再取得してください。',
+    )
+    expect(
+      screen.getByRole('button', { name: 'カメラを再取得' }),
+    ).toBeInTheDocument()
   })
 })

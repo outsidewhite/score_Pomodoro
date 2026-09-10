@@ -343,6 +343,7 @@ ${sessionId}:interval:${intervalNumber}
 | 基準姿勢取得区間の完了時に108回未満 | 次の1分で再試行する旨を通知 |
 | 基準姿勢取得区間の完了時に108回以上 | 基準姿勢を保存した旨を通知 |
 | 検出状態0点が2区間連続 | 離席を検出してタイマーを停止した旨を通知 |
+| 計測中に映像トラックが終了 | カメラ切断を通知し、タイマーと姿勢解析を停止 |
 
 通知は画面右上に表示し、標準では6秒後に閉じます。モデルの読み込み中・失敗通知は、結果が確定するかユーザーが操作するまで表示します。同じ種類の通知は積み重ねず、既存の通知を更新します。
 
@@ -355,6 +356,7 @@ ${sessionId}:interval:${intervalNumber}
 | 500ms評価と60秒区間の制御 | `src/features/pose/usePoseScoring.ts` |
 | 基準姿勢・各指標・獲得点の計算 | `src/features/scoring/intervalScoring.ts` |
 | セッション保存・復元・最終集計 | `src/features/scoring/scoringSession.ts` |
+| カメラ切断の検知と通知 | `src/features/camera/cameraStreamMonitor.ts`、`src/features/camera/useCameraDisconnect.ts` |
 | 自動離席と通知の接続 | `src/pages/measurement/MeasurementPage.tsx` |
 | タイマー停止と離席ログ | `src/components/Timer/Timer.tsx` |
 | セッション全体の状態管理 | `src/App.tsx` |

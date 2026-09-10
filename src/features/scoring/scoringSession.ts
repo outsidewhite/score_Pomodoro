@@ -2,6 +2,11 @@ import type {
   PostureBaseline,
   ScoreIntervalResult,
 } from './intervalScoring.ts'
+import {
+  getEarnedScore,
+  SCORE_INTERVAL_MS,
+  SAMPLES_PER_INTERVAL,
+} from './intervalScoring.ts'
 import type { ScoreResult } from './scoreTypes.ts'
 
 const STORAGE_KEY = 'score-pomodoro:scoring-session'
@@ -24,16 +29,12 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
-function isValidBaseline(value: unknown): value is PostureBaseline {
-  if (!value || typeof value !== 'object') return false
-  const baseline = value as Partial<PostureBaseline>
-  return (
-    isFiniteNumber(baseline.centerX) &&
-    isFiniteNumber(baseline.centerY) &&
-    isFiniteNumber(baseline.shoulderAngle) &&
-    isFiniteNumber(baseline.shoulderWidth) &&
-    baseline.shoulderWidth > 0
-  )
+function isPositiveInteger(value: unknown): value is number {
+  return Number.isInteger(value) && (value as number) > 0
+}
+
+function isScore(value: unknown): value is number {
+  return isFiniteNumber(value) && value >= 0 && value <= 100
 }
 
 function isValidInterval(value: unknown): value is ScoreIntervalResult {
@@ -43,20 +44,35 @@ function isValidInterval(value: unknown): value is ScoreIntervalResult {
     typeof interval.id === 'string' &&
     typeof interval.isCalibration === 'boolean' &&
     typeof interval.calibrationSucceeded === 'boolean' &&
-    (interval.postureScore === null || isFiniteNumber(interval.postureScore)) &&
-    isFiniteNumber(interval.stabilityScore) &&
-    isFiniteNumber(interval.detectionScore) &&
-    isFiniteNumber(interval.totalScore) &&
+    (interval.postureScore === null || isScore(interval.postureScore)) &&
+    isScore(interval.stabilityScore) &&
+    isScore(interval.detectionScore) &&
+    isScore(interval.totalScore) &&
     (interval.earnedScore === 0 ||
       interval.earnedScore === 1 ||
       interval.earnedScore === 2 ||
       interval.earnedScore === 3) &&
+    interval.earnedScore === getEarnedScore(interval.totalScore) &&
     isFiniteNumber(interval.startedAt) &&
     isFiniteNumber(interval.endedAt) &&
+    interval.endedAt - interval.startedAt === SCORE_INTERVAL_MS &&
     Number.isInteger(interval.detectedCount) &&
+    (interval.detectedCount ?? -1) >= 0 &&
     Number.isInteger(interval.absentCount) &&
+    (interval.absentCount ?? -1) >= 0 &&
     Number.isInteger(interval.missedCount) &&
-    Number.isInteger(interval.failedCount)
+    (interval.missedCount ?? -1) >= 0 &&
+    Number.isInteger(interval.failedCount) &&
+    (interval.failedCount ?? -1) >= 0 &&
+    (interval.detectedCount ?? 0) +
+      (interval.absentCount ?? 0) +
+      (interval.missedCount ?? 0) +
+      (interval.failedCount ?? 0) ===
+      SAMPLES_PER_INTERVAL &&
+    (interval.isCalibration
+      ? interval.postureScore === null
+      : interval.postureScore !== null) &&
+    (!interval.calibrationSucceeded || interval.isCalibration)
   )
 }
 
@@ -71,19 +87,60 @@ export function createScoringSession(targetMinutes = 25): ScoringSession {
   }
 }
 
-function isValidSession(value: unknown): value is ScoringSession {
-  if (!value || typeof value !== 'object') return false
+function getIntervalNumber(sessionId: string, intervalId: string) {
+  const prefix = `${sessionId}:interval:`
+  if (!intervalId.startsWith(prefix)) return null
+
+  const intervalNumber = Number(intervalId.slice(prefix.length))
+  return Number.isInteger(intervalNumber) && intervalNumber > 0
+    ? intervalNumber
+    : null
+}
+
+function normalizeSession(value: unknown): ScoringSession | null {
+  if (!value || typeof value !== 'object') return null
   const session = value as Partial<ScoringSession>
-  return (
-    session.version === STORAGE_VERSION &&
-    typeof session.sessionId === 'string' &&
-    Number.isInteger(session.nextIntervalNumber) &&
-    (session.nextIntervalNumber ?? 0) > 0 &&
-    isFiniteNumber(session.targetMinutes) &&
-    Array.isArray(session.intervals) &&
-    session.intervals.every(isValidInterval) &&
-    (session.baseline === null || isValidBaseline(session.baseline))
+  if (
+    session.version !== STORAGE_VERSION ||
+    typeof session.sessionId !== 'string' ||
+    session.sessionId.length === 0 ||
+    !isPositiveInteger(session.targetMinutes) ||
+    !Array.isArray(session.intervals) ||
+    !session.intervals.every(isValidInterval)
+  ) {
+    return null
+  }
+
+  const intervalNumbers = session.intervals.map(({ id }) =>
+    getIntervalNumber(session.sessionId!, id),
   )
+  if (
+    intervalNumbers.some((intervalNumber) => intervalNumber === null) ||
+    new Set(intervalNumbers).size !== intervalNumbers.length
+  ) {
+    return null
+  }
+
+  const intervals = [...session.intervals].sort((left, right) =>
+    left.startedAt - right.startedAt,
+  )
+  if (
+    intervals.some((interval, index) =>
+      index > 0 && interval.startedAt < intervals[index - 1]!.endedAt,
+    )
+  ) {
+    return null
+  }
+
+  return {
+    baseline: null,
+    intervals,
+    // 保存された番号は信用せず、確定済み区間の最大番号から再構築する。
+    nextIntervalNumber: Math.max(0, ...(intervalNumbers as number[])) + 1,
+    sessionId: session.sessionId,
+    targetMinutes: session.targetMinutes,
+    version: STORAGE_VERSION,
+  }
 }
 
 export function loadScoringSession(): ScoringSession | null {
@@ -91,11 +148,12 @@ export function loadScoringSession(): ScoringSession | null {
     const serialized = window.sessionStorage.getItem(STORAGE_KEY)
     if (!serialized) return null
     const parsed: unknown = JSON.parse(serialized)
-    if (!isValidSession(parsed)) {
+    const normalized = normalizeSession(parsed)
+    if (!normalized) {
       window.sessionStorage.removeItem(STORAGE_KEY)
       return null
     }
-    return parsed
+    return normalized
   } catch {
     // 保存データの破損やブラウザの利用制限時は、新規セッションへ安全に戻す。
     return null
@@ -104,7 +162,11 @@ export function loadScoringSession(): ScoringSession | null {
 
 export function saveScoringSession(session: ScoringSession) {
   try {
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(session))
+    // 基準姿勢はページ内だけで利用し、リロードをまたいで保持しない。
+    window.sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...session, baseline: null }),
+    )
   } catch {
     // 保存不可でも計測そのものは継続できるよう、例外を画面へ伝播させない。
   }
@@ -154,10 +216,22 @@ export function appendScoreInterval(
   session: ScoringSession,
   interval: ScoreIntervalResult,
 ): ScoringSession {
-  if (session.intervals.some(({ id }) => id === interval.id)) return session
+  if (
+    !isValidInterval(interval) ||
+    session.intervals.some(
+      (savedInterval) =>
+        savedInterval.id === interval.id ||
+        (interval.startedAt < savedInterval.endedAt &&
+          interval.endedAt > savedInterval.startedAt),
+    )
+  ) {
+    return session
+  }
+  const intervalNumber = getIntervalNumber(session.sessionId, interval.id)
+  if (intervalNumber !== session.nextIntervalNumber) return session
   return {
     ...session,
     intervals: [...session.intervals, interval],
-    nextIntervalNumber: session.nextIntervalNumber + 1,
+    nextIntervalNumber: Math.max(session.nextIntervalNumber, intervalNumber + 1),
   }
 }

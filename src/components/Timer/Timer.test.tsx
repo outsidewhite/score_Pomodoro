@@ -26,6 +26,53 @@ test('姿勢解析からの離席要求で集中タイマーを停止する', as
   )
 })
 
+test('休憩中の停止要求でもタイマーを停止する', async () => {
+  const user = userEvent.setup()
+  const onLogEntry = vi.fn()
+  const onModeChange = vi.fn()
+  const props = {
+    onExit: vi.fn(),
+    onLogEntry,
+    onModeChange,
+  }
+  const { rerender } = render(<Timer {...props} autoPauseRequest={0} />)
+
+  await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+  await user.click(screen.getByRole('button', { name: '休憩に入る' }))
+  await waitFor(() => expect(onModeChange).toHaveBeenLastCalledWith('break'))
+
+  // カメラ切断は休憩中にも起こり得るため、集中中と同じ経路で停止する。
+  rerender(<Timer {...props} autoPauseRequest={1} />)
+
+  await screen.findByRole('button', { name: 'タイマーを開始する' })
+  await waitFor(() => expect(onModeChange).toHaveBeenLastCalledWith('away'))
+  expect(onLogEntry).toHaveBeenLastCalledWith(
+    expect.objectContaining({ mode: 'away' }),
+  )
+})
+
+test('集中切れ通知からの休憩要求で休憩モードへ切り替える', async () => {
+  const user = userEvent.setup()
+  const onLogEntry = vi.fn()
+  const onModeChange = vi.fn()
+  const props = {
+    onExit: vi.fn(),
+    onLogEntry,
+    onModeChange,
+  }
+  const { rerender } = render(<Timer {...props} autoBreakRequest={0} />)
+
+  await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+  await waitFor(() => expect(onModeChange).toHaveBeenLastCalledWith('focus'))
+
+  rerender(<Timer {...props} autoBreakRequest={1} />)
+
+  await waitFor(() => expect(onModeChange).toHaveBeenLastCalledWith('break'))
+  expect(onLogEntry).toHaveBeenLastCalledWith(
+    expect.objectContaining({ mode: 'break' }),
+  )
+})
+
 test('モデル準備中は開始だけを無効化し、終了操作は利用できる', () => {
   render(<Timer onExit={vi.fn()} startDisabled />)
 

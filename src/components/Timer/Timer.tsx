@@ -8,6 +8,7 @@ import type {
 import './Timer.css'
 
 type TimerProps = {
+  autoBreakRequest?: number
   autoPauseRequest?: number
   disabled?: boolean
   initialElapsedMs?: number
@@ -17,6 +18,7 @@ type TimerProps = {
   onLogEntry?: (entry: TimerLogEntry) => void
   onModeChange?: (mode: TimerMode) => void
   startDisabled?: boolean
+  // 目標作業時間は現在のタイマー表示では使用しないが、呼び出し側の指定は受け付ける。
   targetMinutes?: number
 }
 
@@ -71,6 +73,7 @@ function MoonIcon() {
 }
 
 export function Timer({
+  autoBreakRequest = 0,
   autoPauseRequest = 0,
   disabled = false,
   initialElapsedMs = 0,
@@ -80,7 +83,6 @@ export function Timer({
   onLogEntry,
   onModeChange,
   startDisabled = false,
-  targetMinutes,
 }: TimerProps) {
   // 集中と休憩を個別に保持し、表示時に作業時間として合計する。
   const initialDurations: TimerDurations = {
@@ -92,6 +94,7 @@ export function Timer({
   const logIdRef = useRef(initialLogId)
   const wasRunningBeforeExitRef = useRef<boolean | null>(null)
   const cancelExitButtonRef = useRef<HTMLButtonElement>(null)
+  const handledAutoBreakRequestRef = useRef(autoBreakRequest)
   const handledAutoPauseRequestRef = useRef(autoPauseRequest)
   const [activeStartedAt, setActiveStartedAt] = useState<number | null>(null)
   const [durations, setDurations] = useState<TimerDurations>(initialDurations)
@@ -184,14 +187,14 @@ export function Timer({
     if (autoPauseRequest === handledAutoPauseRequestRef.current) return
     handledAutoPauseRequestRef.current = autoPauseRequest
 
-    // 姿勢解析からの離席要求も手動停止と同じ経路で時間とログを確定する。
-    if (isRunning && mode === 'focus') {
+    // 姿勢解析やカメラ切断からの停止要求も、手動停止と同じ経路で時間とログを確定する。
+    if (isRunning) {
       // oxlint-disable-next-line react/set-state-in-effect -- 外部イベントをタイマー内部の停止処理へ同期する。
       pauseTimer(Date.now())
     }
-  }, [autoPauseRequest, isRunning, mode, pauseTimer])
+  }, [autoPauseRequest, isRunning, pauseTimer])
 
-  const handleBreakToggle = () => {
+  const handleBreakToggle = useCallback(() => {
     // 離席中は休憩・集中の内部モードを変更しない。
     if (!isRunning) {
       return
@@ -208,7 +211,18 @@ export function Timer({
     syncClock(now)
     setMode(nextMode)
     emitLog(nextMode, now)
-  }
+  }, [commitActiveTime, emitLog, isRunning, mode, syncClock])
+
+  useEffect(() => {
+    if (autoBreakRequest === handledAutoBreakRequestRef.current) return
+    handledAutoBreakRequestRef.current = autoBreakRequest
+
+    // 集中切れ通知のボタンも手動の休憩切替と同じ経路で時間とログを確定する。
+    if (isRunning && mode === 'focus') {
+      // oxlint-disable-next-line react/set-state-in-effect -- 外部イベントをタイマー内部の休憩切替へ同期する。
+      handleBreakToggle()
+    }
+  }, [autoBreakRequest, handleBreakToggle, isRunning, mode])
 
   const handleExitRequest = () => {
     const now = Date.now()
@@ -319,10 +333,6 @@ export function Timer({
       <strong className="session-timer__time" aria-live="polite">
         {formatElapsedTime(totalWorkMs)}
       </strong>
-
-      {targetMinutes !== undefined && (
-        <p className="session-timer__target">目標時間 {targetMinutes}分</p>
-      )}
 
       <div className="session-timer__controls" aria-label="タイマー操作">
         <button

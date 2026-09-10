@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppToaster } from './components/Notification/AppToaster.tsx'
+import {
+  CAMERA_DISCONNECTED_MESSAGE,
+  useCameraDisconnect,
+} from './features/camera/useCameraDisconnect.ts'
 import type {
   PostureBaseline,
   ScoreIntervalResult,
@@ -33,6 +37,15 @@ const DEFAULT_SETTINGS: SessionSettings = {
 // 旅の累積値は現在のセッションで獲得した点数から始める。
 const INITIAL_SCORE = 0
 
+function createInitialScoringSession() {
+  const restoredSession = loadScoringSession()
+  if (restoredSession) return restoredSession
+
+  // 採点データが無い、または破損している場合は古いタイマーログも引き継がない。
+  clearTimerSession()
+  return createScoringSession(DEFAULT_SETTINGS.targetMinutes)
+}
+
 function getPageFromPath(): AppPage {
   if (window.location.pathname === '/measurement') {
     return 'measurement'
@@ -47,8 +60,8 @@ function getPageFromPath(): AppPage {
 
 function App() {
   const [page, setPage] = useState<AppPage>(getPageFromPath)
-  const [scoringSession, setScoringSession] = useState(() =>
-    loadScoringSession() ?? createScoringSession(DEFAULT_SETTINGS.targetMinutes),
+  const [scoringSession, setScoringSession] = useState(
+    createInitialScoringSession,
   )
   const [settings, setSettings] = useState<SessionSettings>({
     targetMinutes: scoringSession.targetMinutes,
@@ -57,6 +70,7 @@ function App() {
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [isPreparingCamera, setIsPreparingCamera] = useState(false)
   const [journey, setJourney] = useState<Journey>(() => createJourney())
+  const [cameraStopRequest, setCameraStopRequest] = useState(0)
   const cameraStreamRef = useRef<MediaStream | null>(null)
   const isPreparingCameraRef = useRef(false)
   const scoreResult = summarizeScoringSession(scoringSession)
@@ -75,6 +89,18 @@ function App() {
     cameraStreamRef.current = null
     setCameraStream(null)
   }, [])
+
+  // 映像トラックが終了した場合は、計測を止めてカメラ状態を未接続へ戻す。
+  const handleCameraDisconnect = useCallback(() => {
+    stopCamera()
+    setCameraError(CAMERA_DISCONNECTED_MESSAGE)
+    setCameraStopRequest((request) => request + 1)
+  }, [stopCamera])
+
+  useCameraDisconnect({
+    onDisconnect: handleCameraDisconnect,
+    stream: cameraStream,
+  })
 
   const requestCamera = useCallback(async () => {
     if (cameraStreamRef.current) return cameraStreamRef.current
@@ -169,9 +195,12 @@ function App() {
 
   const handleScoreUpdate = useCallback((evaluation: ScoreIntervalResult) => {
     // Reactの再描画や再通知でも、同じ区間を二重加算しない。
-    setScoringSession((currentSession) =>
-      appendScoreInterval(currentSession, evaluation),
-    )
+    setScoringSession((currentSession) => {
+      const nextSession = appendScoreInterval(currentSession, evaluation)
+      // 完了通知と同じ処理内で保存し、直後のリロードでも確定区間を失わない。
+      saveScoringSession(nextSession)
+      return nextSession
+    })
   }, [])
 
   const handleBaselineChange = useCallback((baseline: PostureBaseline) => {
@@ -206,6 +235,7 @@ function App() {
         <MeasurementPage
           baseline={scoringSession.baseline}
           cameraError={cameraError}
+          cameraStopRequest={cameraStopRequest}
           cameraStream={cameraStream}
           elapsedMs={0}
           journey={journey}
@@ -214,6 +244,7 @@ function App() {
           latestEarnedScore={latestEarnedScore}
           onBaselineChange={handleBaselineChange}
           onCameraRetry={handleCameraRetry}
+          onCameraFreeze={handleCameraDisconnect}
           onFinish={handleFinish}
           onScoreUpdate={handleScoreUpdate}
           originalScore={INITIAL_SCORE}
