@@ -132,15 +132,21 @@ export function getDetectionSegmentScore(samples: FrameEvaluation[]) {
   return detectedCount >= REQUIRED_DETECTIONS_PER_SEGMENT ? 25 : 0
 }
 
-// 処理失敗は判定から外し、十分な正常解析がある区間だけ離席判定に利用する。
-export function isConclusiveAbsentSegment(samples: FrameEvaluation[]) {
-  const analyzableCount = samples.filter(
+// 解析自体に成功した件数。detectedとabsentだけを解析可能件数として数える。
+export function getAnalyzableCount(samples: FrameEvaluation[]) {
+  return samples.filter(
     ({ status }) => status === 'detected' || status === 'absent',
   ).length
-  return (
-    analyzableCount >= REQUIRED_DETECTIONS_PER_SEGMENT &&
-    getDetectionSegmentScore(samples) === 0
-  )
+}
+
+// failedやmissedが多い区間は、人物の有無を判断する材料がないため判定に使わない。
+export function isAnalyzableSegment(samples: FrameEvaluation[]) {
+  return getAnalyzableCount(samples) >= REQUIRED_DETECTIONS_PER_SEGMENT
+}
+
+// 処理失敗は判定から外し、十分な正常解析がある区間だけ離席判定に利用する。
+export function isConclusiveAbsentSegment(samples: FrameEvaluation[]) {
+  return isAnalyzableSegment(samples) && getDetectionSegmentScore(samples) === 0
 }
 
 export function updateConsecutiveAbsentSegments(

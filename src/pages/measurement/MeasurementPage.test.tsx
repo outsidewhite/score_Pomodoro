@@ -18,6 +18,7 @@ vi.mock('../../features/pose/usePoseScoring.ts', () => ({
 
 type PoseScoringCallbacks = {
   enabled: boolean
+  onAnalysisUnavailable: () => void
   onModelLoadError: (message: string) => void
   onModelLoadStart: () => void
   onModelReady: () => void
@@ -242,5 +243,66 @@ describe('MeasurementPageのカメラ切断', () => {
     expect(
       screen.getByRole('button', { name: 'カメラを再取得' }),
     ).toBeInTheDocument()
+  })
+})
+
+const ANALYSIS_UNAVAILABLE_MESSAGE = '姿勢を解析できないため計測を停止しました'
+// sonnerはdismissから約200ms後に要素を取り除く。表示が残ることを確かめるにはこれを越えて待つ。
+const TOAST_REMOVAL_WAIT_MS = 400
+
+// 計測中（集中）まで進めてから、解析不能の停止要求を発生させる。
+async function startTimerAndStopByAnalysisFailure(user: ReturnType<typeof userEvent.setup>) {
+  act(() => getLatestScoringCallbacks().onModelReady())
+  await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+  expectStatus('計測中', 'measuring', 'focus')
+
+  act(() => getLatestScoringCallbacks().onAnalysisUnavailable())
+}
+
+describe('MeasurementPageの解析不能停止', () => {
+  test('解析不能の停止要求でタイマーを停止して通知する', async () => {
+    const user = userEvent.setup()
+    renderMeasurementPage()
+
+    await startTimerAndStopByAnalysisFailure(user)
+
+    await screen.findByRole('button', { name: 'タイマーを開始する' })
+    expectStatus('離席中', 'away', 'away')
+    expect(await screen.findByText(ANALYSIS_UNAVAILABLE_MESSAGE)).toBeInTheDocument()
+  })
+
+  test('通知からモデルの再読み込みを要求できる', async () => {
+    const user = userEvent.setup()
+    renderMeasurementPage()
+
+    await startTimerAndStopByAnalysisFailure(user)
+
+    await user.click(
+      await screen.findByRole('button', { name: 'モデルを再読み込み' }),
+    )
+
+    await waitFor(() => {
+      expect(getLatestScoringCallbacks().reloadRequest).toBe(1)
+    })
+  })
+
+  test('集中を再開したときだけ解析不能の通知を閉じる', async () => {
+    const user = userEvent.setup()
+    renderMeasurementPage()
+
+    await startTimerAndStopByAnalysisFailure(user)
+    expect(await screen.findByText(ANALYSIS_UNAVAILABLE_MESSAGE)).toBeInTheDocument()
+
+    // 停止でawayへ切り替わった後も、ユーザーが再開するまで通知を残す。
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, TOAST_REMOVAL_WAIT_MS))
+    })
+    expect(screen.getByText(ANALYSIS_UNAVAILABLE_MESSAGE)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+
+    await waitFor(() => {
+      expect(screen.queryByText(ANALYSIS_UNAVAILABLE_MESSAGE)).not.toBeInTheDocument()
+    })
   })
 })

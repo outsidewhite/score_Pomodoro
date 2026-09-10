@@ -4,6 +4,10 @@ import {
 } from '@mediapipe/tasks-vision'
 import { useEffect, useRef, type RefObject } from 'react'
 import {
+  evaluateAnalysisAvailability,
+  initialAnalysisAvailabilityState,
+} from '../scoring/analysisAvailability.ts'
+import {
   ANALYSIS_INTERVAL_MS,
   calculateScoreInterval,
   getShoulderPose,
@@ -25,6 +29,7 @@ type PoseScoringOptions = {
   enabled: boolean
   initialBaseline: PostureBaseline | null
   initialIntervalNumber: number
+  onAnalysisUnavailable: () => void
   onAwayDetected: () => void
   onBaselineChange: (baseline: PostureBaseline) => void
   onError: (message: string) => void
@@ -41,6 +46,7 @@ export function usePoseScoring({
   enabled,
   initialBaseline,
   initialIntervalNumber,
+  onAnalysisUnavailable,
   onAwayDetected,
   onBaselineChange,
   onError,
@@ -114,6 +120,8 @@ export function usePoseScoring({
     let nextSlotIndex = 0
     let lastVideoTime = -1
     let consecutiveAbsentSegments = 0
+    // enabledが変わるとこのeffectごと作り直されるため、focus以外への切替で追跡状態は初期化される。
+    let availability = initialAnalysisAvailabilityState
     let baseline = initialBaselineRef.current
     let samples: FrameEvaluation[] = []
 
@@ -152,10 +160,23 @@ export function usePoseScoring({
       }
     }
 
-    const evaluateAwayState = () => {
+    const evaluateSegmentBoundary = () => {
       if (samples.length % SAMPLES_PER_DETECTION_SEGMENT !== 0) return false
 
       const segment = samples.slice(-SAMPLES_PER_DETECTION_SEGMENT)
+      const evaluation = evaluateAnalysisAvailability(availability, segment)
+      availability = evaluation.state
+
+      if (evaluation.shouldStop) {
+        // 約30秒解析できなかった時点で、未完了区間を破棄して計測を止める。
+        samples = []
+        onAnalysisUnavailable()
+        return true
+      }
+
+      // 解析不能な区間は人物の有無を判断できないため、離席判定には使わない。
+      if (!evaluation.isAnalyzable) return false
+
       consecutiveAbsentSegments = updateConsecutiveAbsentSegments(
         consecutiveAbsentSegments,
         segment,
@@ -201,7 +222,7 @@ export function usePoseScoring({
       while (nextSlotIndex < Math.max(0, dueCount - 1)) {
         samples.push(createMissedSample(nextSlotIndex))
         nextSlotIndex += 1
-        if (evaluateAwayState()) return
+        if (evaluateSegmentBoundary()) return
       }
 
       if (nextSlotIndex < dueCount) {
@@ -209,7 +230,7 @@ export function usePoseScoring({
           intervalStartedAtEpoch + (nextSlotIndex + 1) * ANALYSIS_INTERVAL_MS
         samples.push(evaluateCurrentFrame(scheduledAt))
         nextSlotIndex += 1
-        if (evaluateAwayState()) return
+        if (evaluateSegmentBoundary()) return
       }
 
       if (nextSlotIndex === SAMPLES_PER_INTERVAL) {
@@ -228,5 +249,14 @@ export function usePoseScoring({
       window.clearTimeout(timerId)
       samples = []
     }
-  }, [enabled, onAwayDetected, onBaselineChange, onError, onIntervalComplete, sessionId, videoRef])
+  }, [
+    enabled,
+    onAnalysisUnavailable,
+    onAwayDetected,
+    onBaselineChange,
+    onError,
+    onIntervalComplete,
+    sessionId,
+    videoRef,
+  ])
 }

@@ -5,6 +5,8 @@ import {
   getDetectionSegmentScore,
   getEarnedScore,
   getStabilitySegmentScore,
+  isAnalyzableSegment,
+  isConclusiveAbsentSegment,
   REQUIRED_BASELINE_DETECTIONS,
   updateConsecutiveAbsentSegments,
   type FrameEvaluation,
@@ -65,6 +67,26 @@ describe('15秒区間の採点', () => {
   test('人物検出が9回なら0点、10回なら25点にする', () => {
     expect(getDetectionSegmentScore(createSamples(9, 'detected'))).toBe(0)
     expect(getDetectionSegmentScore(createSamples(10, 'detected'))).toBe(25)
+  })
+
+  test('解析可能件数が9件なら判定不能、10件なら判定可能にする', () => {
+    expect(
+      isAnalyzableSegment([
+        ...createSamples(9, 'absent'),
+        ...createSamples(21, 'failed', 9),
+      ]),
+    ).toBe(false)
+    expect(
+      isAnalyzableSegment([
+        ...createSamples(10, 'absent'),
+        ...createSamples(20, 'failed', 10),
+      ]),
+    ).toBe(true)
+  })
+
+  test('failedばかりの区間は不在が確定した区間として扱わない', () => {
+    expect(isConclusiveAbsentSegment(createSamples(30, 'failed'))).toBe(false)
+    expect(isConclusiveAbsentSegment(createSamples(30, 'absent'))).toBe(true)
   })
 
   test('判定可能な不在が2区間続いた場合だけ連続回数を2にする', () => {
