@@ -5,6 +5,7 @@ import type {
   TimerLogEntry,
   TimerMode,
 } from './timerTypes.ts'
+import { TimerProgress } from './TimerProgress.tsx'
 import './Timer.css'
 
 type TimerProps = {
@@ -18,7 +19,7 @@ type TimerProps = {
   onLogEntry?: (entry: TimerLogEntry) => void
   onModeChange?: (mode: TimerMode) => void
   startDisabled?: boolean
-  // 目標作業時間は現在のタイマー表示では使用しないが、呼び出し側の指定は受け付ける。
+  // 目標作業時間は進捗シークバーの分母に使用する。未指定の場合は表示しない。
   targetMinutes?: number
 }
 
@@ -83,6 +84,7 @@ export function Timer({
   onLogEntry,
   onModeChange,
   startDisabled = false,
+  targetMinutes = 0,
 }: TimerProps) {
   // 集中と休憩を個別に保持し、表示時に作業時間として合計する。
   const initialDurations: TimerDurations = {
@@ -333,6 +335,8 @@ export function Timer({
       <strong className="session-timer__time" aria-live="polite">
         {formatElapsedTime(totalWorkMs)}
       </strong>
+
+      <TimerProgress elapsedMs={totalWorkMs} targetMinutes={targetMinutes} />
 
       <div className="session-timer__controls" aria-label="タイマー操作">
         <button

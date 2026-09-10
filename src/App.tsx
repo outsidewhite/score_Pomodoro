@@ -79,7 +79,7 @@ function App() {
     scoringSession.intervals.at(-1)?.earnedScore ?? null
 
   useEffect(() => {
-    // 完了区間と基準姿勢を毎回保存し、再読み込み後も同じセッションを復元する。
+    // 完了区間を毎回保存し、基準姿勢を除く同じセッションを再読み込み後に復元する。
     saveScoringSession(scoringSession)
   }, [scoringSession])
 

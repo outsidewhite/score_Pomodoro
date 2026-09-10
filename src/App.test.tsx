@@ -18,9 +18,9 @@ vi.mock('./pages/measurement/MeasurementPage.tsx', () => ({
     cameraError: string | null
     cameraStopRequest: number
     cameraStream: MediaStream | null
+    onBaselineChange: (baseline: PostureBaseline) => void
     onCameraFreeze: () => void
     onCameraRetry: () => void
-    onBaselineChange: (baseline: PostureBaseline) => void
     sessionId: string
     status: string
   }) => {
@@ -30,6 +30,19 @@ vi.mock('./pages/measurement/MeasurementPage.tsx', () => ({
         <span>{props.status}</span>
         <span>{props.cameraError}</span>
         <span data-testid="camera-stop-request">{props.cameraStopRequest}</span>
+        <button
+          type="button"
+          onClick={() =>
+            props.onBaselineChange({
+              centerX: 0.5,
+              centerY: 0.5,
+              shoulderAngle: 0,
+              shoulderWidth: 0.2,
+            })
+          }
+        >
+          基準姿勢を設定
+        </button>
         <button type="button" onClick={props.onCameraRetry}>
           カメラを再取得
         </button>
@@ -198,14 +211,15 @@ describe('計測中のカメラ切断', () => {
     expect(screen.getByText(CAMERA_DISCONNECTED_MESSAGE)).toBeInTheDocument()
   })
 
-  test('切断しても完了区間と画面内の基準姿勢は破棄しない', async () => {
-    const session = createScoringSession(25)
-    session.baseline = {
+  test('切断しても完了区間とメモリ上の基準姿勢は破棄しない', async () => {
+    const user = userEvent.setup()
+    const baseline: PostureBaseline = {
       centerX: 0.5,
       centerY: 0.5,
       shoulderAngle: 0,
       shoulderWidth: 0.2,
     }
+    const session = createScoringSession(25)
     session.intervals = [
       {
         absentCount: 0,
@@ -230,25 +244,15 @@ describe('計測中のカメラ切断', () => {
 
     render(<App />)
     await screen.findByText('measuring')
-
-    // 基準姿勢はリロード越しに保存しないが、同じ画面内では切断後も維持する。
-    act(() => {
-      measurementPageMock.mock.calls.at(-1)?.[0].onBaselineChange(
-        session.baseline!,
-      )
-    })
-    await waitFor(() => {
+    await user.click(screen.getByRole('button', { name: '基準姿勢を設定' }))
+    await waitFor(() =>
       expect(measurementPageMock.mock.calls.at(-1)?.[0].baseline).toEqual(
-        session.baseline,
-      )
-    })
+        baseline,
+      ),
+    )
 
     act(() => acquiredTracks[0].forEach((track) => track.end()))
     await screen.findByText('preparing')
-
-    expect(measurementPageMock.mock.calls.at(-1)?.[0].baseline).toEqual(
-      session.baseline,
-    )
 
     const stored = JSON.parse(
       window.sessionStorage.getItem('score-pomodoro:scoring-session') ?? 'null',
@@ -256,5 +260,7 @@ describe('計測中のカメラ切断', () => {
     expect(stored.intervals).toHaveLength(1)
     expect(stored.baseline).toBeNull()
     expect(stored.nextIntervalNumber).toBe(2)
+    // 切断ではAppを再生成しないため、基準姿勢はメモリ上で引き継がれる。
+    expect(measurementPageMock.mock.calls.at(-1)?.[0].baseline).toEqual(baseline)
   })
 })
