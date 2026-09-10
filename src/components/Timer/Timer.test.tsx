@@ -102,3 +102,34 @@ test('復元したログIDの続きから新しいログを発行する', async 
     expect.objectContaining({ id: 5, mode: 'focus' }),
   )
 })
+
+test('目標時間が渡されない場合はシークバーを表示しない', () => {
+  render(<Timer onExit={vi.fn()} />)
+
+  expect(screen.queryByRole('progressbar')).toBeNull()
+})
+
+test('復元した経過時間を目標時間の進捗へ反映する', () => {
+  render(
+    <Timer initialElapsedMs={750_000} onExit={vi.fn()} targetMinutes={25} />,
+  )
+
+  expect(screen.getByRole('progressbar', { name: '目標時間の進捗' }))
+    .toHaveAttribute('aria-valuenow', '50')
+})
+
+test('休憩へ切り替えてもシークバーの見た目は変化しない', async () => {
+  const user = userEvent.setup()
+  render(
+    <Timer initialElapsedMs={750_000} onExit={vi.fn()} targetMinutes={25} />,
+  )
+
+  const focusClassName = screen.getByRole('progressbar').className
+
+  await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+  await user.click(screen.getByRole('button', { name: '休憩に入る' }))
+  await screen.findByRole('button', { name: '集中に戻る' })
+
+  // モード別のクラスを持たないため、集中・休憩・離席で色が変化しない。
+  expect(screen.getByRole('progressbar').className).toBe(focusClassName)
+})
