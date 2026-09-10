@@ -61,6 +61,8 @@ function App() {
   const isPreparingCameraRef = useRef(false)
   const scoreResult = summarizeScoringSession(scoringSession)
   const totalEarnedScore = getTotalEarnedScore(scoringSession)
+  const latestEarnedScore =
+    scoringSession.intervals.at(-1)?.earnedScore ?? null
 
   useEffect(() => {
     // 完了区間と基準姿勢を毎回保存し、再読み込み後も同じセッションを復元する。
@@ -209,6 +211,7 @@ function App() {
           journey={journey}
           isPreparingCamera={isPreparingCamera}
           nextIntervalNumber={scoringSession.nextIntervalNumber}
+          latestEarnedScore={latestEarnedScore}
           onBaselineChange={handleBaselineChange}
           onCameraRetry={handleCameraRetry}
           onFinish={handleFinish}

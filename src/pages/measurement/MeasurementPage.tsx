@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button.tsx'
 import type { ModelStatus } from '../../features/camera/cameraTypes.ts'
 import { usePoseScoring } from '../../features/pose/usePoseScoring.ts'
 import type {
+  EarnedScore,
   PostureBaseline,
   ScoreIntervalResult,
 } from '../../features/scoring/intervalScoring.ts'
@@ -19,6 +20,7 @@ import {
   type TimerSession,
 } from '../../features/session/timerSession.ts'
 import type { Journey } from '../../features/trip/types.ts'
+import { getJourneyMotionState } from '../../features/trip/getJourneyMotionState.ts'
 import type { MeasurementStatus } from '../../shared/types/measurement.ts'
 import './MeasurementPage.css'
 
@@ -35,6 +37,7 @@ type MeasurementPageProps = {
   elapsedMs: number
   isPreparingCamera: boolean
   journey: Journey
+  latestEarnedScore: EarnedScore | null
   nextIntervalNumber: number
   onBaselineChange: (baseline: PostureBaseline) => void
   onCameraRetry: () => void
@@ -54,6 +57,7 @@ export function MeasurementPage({
   elapsedMs,
   isPreparingCamera,
   journey,
+  latestEarnedScore,
   nextIntervalNumber,
   onBaselineChange,
   onCameraRetry,
@@ -242,6 +246,13 @@ export function MeasurementPage({
           ? 'ready'
           : 'paused'
 
+  const journeyMotionState = getJourneyMotionState({
+    hasStarted: timerLogs.length > 0,
+    isPreparing: status !== 'measuring' || modelLoadStatus !== 'ready',
+    latestEarnedScore,
+    timerMode,
+  })
+
   return (
     <main className="measurement-page">
       <AppHeader
@@ -339,6 +350,7 @@ export function MeasurementPage({
           analysisError={analysisError}
           analysisStatus={analysisStatus}
           journey={journey}
+          motionState={journeyMotionState}
           originalScore={originalScore}
           scoreIncrement={scoreIncrement}
         />

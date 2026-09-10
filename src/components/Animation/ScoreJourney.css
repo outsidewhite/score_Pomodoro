@@ -4,7 +4,7 @@
   padding: var(--space-5);
   border: 1px solid #000;
   border-radius: 0;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   color: #000;
   background: #fff;
   box-sizing: border-box;
@@ -74,6 +74,7 @@
   position: absolute;
   right: 12px;
   bottom: 8px;
+  z-index: 3;
   left: 12px;
   overflow: hidden;
   height: 4px;
@@ -91,10 +92,204 @@
 }
 
 .score-journey__caption {
-  margin: var(--space-2) 0 0;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
   color: #000;
   font-size: 10px;
+}
+
+.score-journey__caption > span {
+  text-align: left;
+}
+
+.score-journey__caption > strong {
+  flex: 0 0 auto;
   text-align: right;
+}
+
+/* 開発中に、スコアを変更せず各ステージの動きを確認するための操作列。 */
+.score-journey__debug-controls {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px dashed #000;
+}
+
+.score-journey__debug-title {
+  flex: 0 0 auto;
+  padding-top: 5px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.score-journey__debug-groups {
+  display: grid;
+  gap: 4px;
+}
+
+.score-journey__debug-group {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+}
+
+.score-journey__debug-group > span {
+  font-size: 8px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.score-journey__debug-group > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.score-journey__debug-controls button {
+  padding: 4px 8px;
+  border: 1px solid #000;
+  border-radius: 0;
+  color: #000;
+  background: #fff;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.score-journey__debug-controls button[aria-pressed='true'] {
+  color: #fff;
+  background: #000;
+}
+
+.score-journey__debug-controls button:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: 2px;
+}
+
+/* 進行中の点数に応じ、背景と乗り物の速度を控えめな範囲で変化させる。 */
+.score-journey__scene--motion-score1 .journey-scene__scroll--japan-far {
+  animation-duration: 38s;
+}
+
+.score-journey__scene--motion-score1 .journey-scene__scroll--world-far {
+  animation-duration: 42s;
+}
+
+.score-journey__scene--motion-score1 .journey-scene__scroll--world-city {
+  animation-duration: 31s;
+}
+
+.score-journey__scene--motion-score1 .journey-scene__scroll--space-far {
+  animation-duration: 41s;
+}
+
+.score-journey__scene--motion-score1 .journey-scene__scroll--space-mid {
+  animation-duration: 22s;
+}
+
+.score-journey__scene--motion-score1 .journey-scene__scroll--space-planet {
+  animation-duration: 30s;
+}
+
+.score-journey__scene--motion-score1 .journey-scene__wheel {
+  animation-duration: 1.5s;
+}
+
+.score-journey__scene--motion-score1 .journey-scene__car {
+  animation-duration: 800ms;
+}
+
+.score-journey__scene--motion-score1 .journey-scene__plane {
+  animation-duration: 3.4s;
+}
+
+.score-journey__scene--motion-score1 .journey-scene__spaceship {
+  animation-duration: 4s;
+}
+
+.score-journey__scene--motion-score1 .journey-scene__contrail {
+  animation-duration: 1.8s;
+}
+
+.score-journey__scene--motion-score1 .journey-scene__flame--outer {
+  animation-duration: 800ms;
+}
+
+.score-journey__scene--motion-score1 .journey-scene__flame--inner {
+  animation-duration: 600ms;
+}
+
+.score-journey__scene--motion-score3 .journey-scene__scroll--japan-far {
+  animation-duration: 17s;
+}
+
+.score-journey__scene--motion-score3 .journey-scene__scroll--world-far {
+  animation-duration: 18s;
+}
+
+.score-journey__scene--motion-score3 .journey-scene__scroll--world-city {
+  animation-duration: 13s;
+}
+
+.score-journey__scene--motion-score3 .journey-scene__scroll--space-far {
+  animation-duration: 17s;
+}
+
+.score-journey__scene--motion-score3 .journey-scene__scroll--space-mid {
+  animation-duration: 9s;
+}
+
+.score-journey__scene--motion-score3 .journey-scene__scroll--space-planet {
+  animation-duration: 12s;
+}
+
+.score-journey__scene--motion-score3 .journey-scene__wheel {
+  animation-duration: 560ms;
+}
+
+.score-journey__scene--motion-score3 .journey-scene__car {
+  animation-duration: 400ms;
+}
+
+.score-journey__scene--motion-score3 .journey-scene__plane {
+  animation-duration: 1.8s;
+}
+
+.score-journey__scene--motion-score3 .journey-scene__spaceship {
+  animation-duration: 2.2s;
+}
+
+.score-journey__scene--motion-score3 .journey-scene__contrail,
+.score-journey__scene--motion-score3 .journey-scene__flame {
+  animation-duration: 260ms;
+}
+
+/* 移動シーンの停止系状態では、背景と乗り物をともに止める。 */
+.score-journey__scene--motion-idle .journey-scene__scroll,
+.score-journey__scene--motion-idle .journey-scene__vehicle,
+.score-journey__scene--motion-idle .journey-scene__wheel,
+.score-journey__scene--motion-idle .journey-scene__contrail,
+.score-journey__scene--motion-idle .journey-scene__flame,
+.score-journey__scene--motion-score0 .journey-scene__scroll,
+.score-journey__scene--motion-score0 .journey-scene__vehicle,
+.score-journey__scene--motion-score0 .journey-scene__wheel,
+.score-journey__scene--motion-score0 .journey-scene__contrail,
+.score-journey__scene--motion-score0 .journey-scene__flame,
+.score-journey__scene--motion-break .journey-scene__scroll,
+.score-journey__scene--motion-break .journey-scene__vehicle,
+.score-journey__scene--motion-break .journey-scene__wheel,
+.score-journey__scene--motion-break .journey-scene__contrail,
+.score-journey__scene--motion-break .journey-scene__flame {
+  animation-play-state: paused;
 }
 
 /* 背景を複製した960px幅で描き、半分だけ動かして継ぎ目なく循環させる。 */
@@ -142,8 +337,8 @@
   transform-origin: center;
 }
 
-.journey-scene__train {
-  animation: journey-train-running 520ms ease-in-out infinite alternate;
+.journey-scene__car {
+  animation: journey-car-running 520ms ease-in-out infinite alternate;
 }
 
 .journey-scene__plane {
@@ -177,13 +372,24 @@
   animation: journey-flame-pulse 320ms ease-in-out infinite alternate-reverse;
 }
 
+/* 非作業シーンでは、休息や無重力が伝わるごく小さな動きだけを残す。 */
+.journey-scene__drifting-vessel {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: journey-space-drift 5s ease-in-out infinite;
+}
+
+.journey-scene__rest-mark {
+  animation: journey-rest-mark 2s ease-in-out infinite;
+}
+
 @keyframes journey-scroll-left {
   to {
     transform: translateX(-480px);
   }
 }
 
-@keyframes journey-train-running {
+@keyframes journey-car-running {
   to {
     transform: translateY(1.5px);
   }
@@ -214,6 +420,19 @@
   }
 }
 
+@keyframes journey-space-drift {
+  50% {
+    transform: translate(4px, -5px) rotate(-0.6deg);
+  }
+}
+
+@keyframes journey-rest-mark {
+  50% {
+    opacity: 0.35;
+    transform: translateY(-3px);
+  }
+}
+
 @keyframes score-journey-scene-arrive {
   from {
     opacity: 0.72;
@@ -228,7 +447,9 @@
   .journey-scene__vehicle,
   .journey-scene__wheel,
   .journey-scene__contrail,
-  .journey-scene__flame {
+  .journey-scene__flame,
+  .journey-scene__drifting-vessel,
+  .journey-scene__rest-mark {
     transition: none;
     animation: none;
   }
