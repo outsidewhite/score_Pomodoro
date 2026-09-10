@@ -48,6 +48,9 @@ const MOTION_STATE_LABELS: Record<JourneyMotionState, string> = {
   break: '休憩中',
 }
 
+// 本番画面へデバッグ操作を露出させず、開発サーバーでは削除せず使い続けられるようにする。
+const SHOW_DEBUG_CONTROLS = import.meta.env.DEV
+
 export function ScoreJourney({ journey, motionState, score }: ScoreJourneyProps) {
   const previousScoreRef = useRef(score)
   const [animationKey, setAnimationKey] = useState(0)
@@ -142,46 +145,48 @@ export function ScoreJourney({ journey, motionState, score }: ScoreJourneyProps)
         <strong>{MOTION_STATE_LABELS[displayedMotionState]}</strong>
       </div>
 
-      <div
-        className="score-journey__debug-controls"
-        aria-label="デバッグ用アニメーション切り替え"
-      >
-        <span className="score-journey__debug-title">DEBUG</span>
-        <div className="score-journey__debug-groups">
-          <div className="score-journey__debug-group">
-            <span>表示</span>
-            <div>
-              {DEBUG_ANIMATION_MODES.map((mode) => (
-                <button
-                  key={mode.value}
-                  type="button"
-                  aria-label={mode.value === 'auto' ? '表示を自動' : undefined}
-                  aria-pressed={debugAnimationMode === mode.value}
-                  onClick={() => handleDebugAnimationChange(mode.value)}
-                >
-                  {mode.label}
-                </button>
-              ))}
+      {SHOW_DEBUG_CONTROLS && (
+        <div
+          className="score-journey__debug-controls"
+          aria-label="デバッグ用アニメーション切り替え"
+        >
+          <span className="score-journey__debug-title">DEBUG</span>
+          <div className="score-journey__debug-groups">
+            <div className="score-journey__debug-group">
+              <span>表示</span>
+              <div>
+                {DEBUG_ANIMATION_MODES.map((mode) => (
+                  <button
+                    key={mode.value}
+                    type="button"
+                    aria-label={mode.value === 'auto' ? '表示を自動' : undefined}
+                    aria-pressed={debugAnimationMode === mode.value}
+                    onClick={() => handleDebugAnimationChange(mode.value)}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-          <div className="score-journey__debug-group">
-            <span>動き</span>
-            <div>
-              {DEBUG_MOTION_MODES.map((mode) => (
-                <button
-                  key={mode.value}
-                  type="button"
-                  aria-label={mode.value === 'auto' ? '動きを自動' : undefined}
-                  aria-pressed={debugMotionMode === mode.value}
-                  onClick={() => handleDebugMotionChange(mode.value)}
-                >
-                  {mode.label}
-                </button>
-              ))}
+            <div className="score-journey__debug-group">
+              <span>動き</span>
+              <div>
+                {DEBUG_MOTION_MODES.map((mode) => (
+                  <button
+                    key={mode.value}
+                    type="button"
+                    aria-label={mode.value === 'auto' ? '動きを自動' : undefined}
+                    aria-pressed={debugMotionMode === mode.value}
+                    onClick={() => handleDebugMotionChange(mode.value)}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </section>
   )
 }
