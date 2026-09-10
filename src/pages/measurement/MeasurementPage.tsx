@@ -8,6 +8,8 @@ import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import { getTimerStatus } from '../../components/ui/statusTone.ts'
 import type { ModelStatus } from '../../features/camera/cameraTypes.ts'
+import { showCameraDisconnectedToast } from '../../features/camera/useCameraDisconnect.ts'
+import { watchVideoPlayback } from '../../features/camera/videoPlaybackMonitor.ts'
 import { usePoseScoring } from '../../features/pose/usePoseScoring.ts'
 import { useFocusDropNotification } from '../../features/scoring/useFocusDropNotification.ts'
 import type {
@@ -32,12 +34,14 @@ const CALIBRATION_TOAST_ID = 'posture-calibration'
 type MeasurementPageProps = {
   baseline: PostureBaseline | null
   cameraError: string | null
+  cameraStopRequest?: number
   cameraStream: MediaStream | null
   elapsedMs: number
   isPreparingCamera: boolean
   nextIntervalNumber: number
   onBaselineChange: (baseline: PostureBaseline) => void
   onCameraRetry: () => void
+  onCameraFreeze?: () => void
   onFinish: () => void
   onScoreUpdate: (result: ScoreIntervalResult) => void
   originalScore: number
@@ -50,12 +54,14 @@ type MeasurementPageProps = {
 export function MeasurementPage({
   baseline,
   cameraError,
+  cameraStopRequest = 0,
   cameraStream,
   elapsedMs,
   isPreparingCamera,
   nextIntervalNumber,
   onBaselineChange,
   onCameraRetry,
+  onCameraFreeze,
   onFinish,
   onScoreUpdate,
   originalScore,
@@ -209,6 +215,20 @@ export function MeasurementPage({
     }
   }, [cameraStream])
 
+  useEffect(() => {
+    const video = videoRef.current
+    if (!cameraStream || !video || !onCameraFreeze) return
+
+    // トラックが生きたまま映像だけ止まるケースも、通常の切断処理へ合流させる。
+    return watchVideoPlayback({
+      onFreeze: () => {
+        showCameraDisconnectedToast()
+        onCameraFreeze()
+      },
+      video,
+    })
+  }, [cameraStream, onCameraFreeze])
+
   useEffect(() => () => {
     // 読み込み途中で画面を離れた場合に、待機中の通知を次画面へ残さない。
     toast.dismiss(POSE_MODEL_LOAD_TOAST_ID)
@@ -331,9 +351,10 @@ export function MeasurementPage({
               <SessionLog currentTimeMs={timerNow} entries={timerLogs} />
 
               <div className="timer-panel__clock">
+                {/* 離席検出とカメラ切断はどちらも単調増加の要求番号で、和も単調増加になる。 */}
                 <Timer
                   autoBreakRequest={autoBreakRequest}
-                  autoPauseRequest={autoPauseRequest}
+                  autoPauseRequest={autoPauseRequest + cameraStopRequest}
                   disabled={status !== 'measuring'}
                   initialElapsedMs={initialElapsedMs}
                   initialLogId={initialLogId}

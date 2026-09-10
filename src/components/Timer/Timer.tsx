@@ -18,6 +18,7 @@ type TimerProps = {
   onLogEntry?: (entry: TimerLogEntry) => void
   onModeChange?: (mode: TimerMode) => void
   startDisabled?: boolean
+  // 目標作業時間は現在のタイマー表示では使用しないが、呼び出し側の指定は受け付ける。
   targetMinutes?: number
 }
 
@@ -186,12 +187,12 @@ export function Timer({
     if (autoPauseRequest === handledAutoPauseRequestRef.current) return
     handledAutoPauseRequestRef.current = autoPauseRequest
 
-    // 姿勢解析からの離席要求も手動停止と同じ経路で時間とログを確定する。
-    if (isRunning && mode === 'focus') {
+    // 姿勢解析やカメラ切断からの停止要求も、手動停止と同じ経路で時間とログを確定する。
+    if (isRunning) {
       // oxlint-disable-next-line react/set-state-in-effect -- 外部イベントをタイマー内部の停止処理へ同期する。
       pauseTimer(Date.now())
     }
-  }, [autoPauseRequest, isRunning, mode, pauseTimer])
+  }, [autoPauseRequest, isRunning, pauseTimer])
 
   const handleBreakToggle = useCallback(() => {
     // 離席中は休憩・集中の内部モードを変更しない。
