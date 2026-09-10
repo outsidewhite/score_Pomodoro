@@ -21,6 +21,11 @@
   --color-status-break-strong: #27628f;
   --color-status-idle: #9a9a9a;
 
+  /* 進捗シークバーはタイマーモードによらず白と灰色で統一する。 */
+  --color-timer-progress-fill: #fff;
+  --color-timer-progress-track: #8a8a8a;
+  --color-timer-progress-border: rgb(24 54 59 / 22%);
+
   --color-text-strong: #18363b;
   --color-text-muted: #60777a;
   --color-border: #d8e7e5;
