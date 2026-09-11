@@ -32,6 +32,7 @@ import './MeasurementPage.css'
 const POSE_ANALYSIS_ERROR_TOAST_ID = 'pose-analysis-error'
 const POSE_MODEL_LOAD_TOAST_ID = 'pose-model-load'
 const AUTO_AWAY_TOAST_ID = 'auto-away'
+const ANALYSIS_UNAVAILABLE_TOAST_ID = 'analysis-unavailable'
 const CALIBRATION_TOAST_ID = 'posture-calibration'
 
 type MeasurementPageProps = {
@@ -191,6 +192,11 @@ export function MeasurementPage({
     handleFocusStateChange(nextMode === 'focus')
     setAnalysisError(null)
     toast.dismiss(POSE_ANALYSIS_ERROR_TOAST_ID)
+    // 停止直後はawayへの切替が届くため、閉じる対象を集中の再開時だけに限定する。
+    // これがないと、自分で出した解析不能通知をその場で閉じてしまう。
+    if (nextMode === 'focus') {
+      toast.dismiss(ANALYSIS_UNAVAILABLE_TOAST_ID)
+    }
   }, [handleFocusStateChange])
   const handleAwayDetected = useCallback(() => {
     setAutoPauseRequest((request) => request + 1)
@@ -198,6 +204,20 @@ export function MeasurementPage({
       id: AUTO_AWAY_TOAST_ID,
     })
   }, [])
+  const handleAnalysisUnavailable = useCallback(() => {
+    // 離席検出と同じ停止要求経路で、タイマーの時間とログを確定する。
+    setAutoPauseRequest((request) => request + 1)
+    toast.error('姿勢を解析できないため計測を停止しました', {
+      action: {
+        label: 'モデルを再読み込み',
+        onClick: requestModelReload,
+      },
+      description:
+        'カメラ映像を確認するか、姿勢解析モデルを再読み込みしてから再開してください。',
+      duration: Infinity,
+      id: ANALYSIS_UNAVAILABLE_TOAST_ID,
+    })
+  }, [requestModelReload])
   const handleIntervalComplete = useCallback((result: ScoreIntervalResult) => {
     if (result.isCalibration && !result.calibrationSucceeded) {
       toast.warning('基準姿勢を取得できなかったため、次の1分で再試行します', {
@@ -240,6 +260,7 @@ export function MeasurementPage({
     // 読み込み途中で画面を離れた場合に、待機中の通知を次画面へ残さない。
     toast.dismiss(POSE_MODEL_LOAD_TOAST_ID)
     toast.dismiss(POSE_ANALYSIS_ERROR_TOAST_ID)
+    toast.dismiss(ANALYSIS_UNAVAILABLE_TOAST_ID)
   }, [])
 
   useEffect(() => {
@@ -259,6 +280,7 @@ export function MeasurementPage({
     enabled: status === 'measuring' && timerMode === 'focus',
     initialBaseline: baseline,
     initialIntervalNumber: nextIntervalNumber,
+    onAnalysisUnavailable: handleAnalysisUnavailable,
     onAwayDetected: handleAwayDetected,
     onBaselineChange,
     onError: handleAnalysisError,
