@@ -1,13 +1,15 @@
 import { act, render, renderHook, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
-import { AppToaster } from '../../components/Notification/AppToaster.tsx'
+import {
+  AppToaster,
+  dismissAllNotifications,
+} from '../../components/Notification/AppToaster.tsx'
 import type { ScoreIntervalResult } from './intervalScoring.ts'
-import { toast } from 'sonner'
 import { useFocusDropNotification } from './useFocusDropNotification.ts'
 
 afterEach(() => {
-  toast.dismiss()
+  dismissAllNotifications()
 })
 
 function createInterval(intervalNumber: number, totalScore: number): ScoreIntervalResult {

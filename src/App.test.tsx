@@ -12,6 +12,10 @@ const measurementPageMock = vi.hoisted(() => vi.fn())
 
 vi.mock('./components/Notification/AppToaster.tsx', () => ({
   AppToaster: () => null,
+  CAMERA_DISCONNECTED_MESSAGE:
+    'カメラが切断されました。接続を確認して、カメラを再取得してください。',
+  dismissCameraDisconnectedNotification: vi.fn(),
+  showCameraDisconnectedNotification: vi.fn(),
 }))
 
 vi.mock('./pages/measurement/MeasurementPage.tsx', () => ({

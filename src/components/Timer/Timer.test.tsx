@@ -1,7 +1,11 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { expect, test, vi } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import { Timer } from './Timer.tsx'
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 test('姿勢解析からの離席要求で集中タイマーを停止する', async () => {
   const user = userEvent.setup()
@@ -49,6 +53,29 @@ test('休憩中の停止要求でもタイマーを停止する', async () => {
   expect(onLogEntry).toHaveBeenLastCalledWith(
     expect.objectContaining({ mode: 'away' }),
   )
+})
+
+test('10分休憩の残り1分で一度だけ通知する', async () => {
+  vi.useFakeTimers()
+  const onBreakEndingSoon = vi.fn()
+  render(
+    <Timer
+      onBreakEndingSoon={onBreakEndingSoon}
+      onExit={vi.fn()}
+    />,
+  )
+
+  fireEvent.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+  fireEvent.click(screen.getByRole('button', { name: '休憩に入る' }))
+
+  await act(() => vi.advanceTimersByTimeAsync(8 * 60_000 + 59_000))
+  expect(onBreakEndingSoon).not.toHaveBeenCalled()
+
+  await act(() => vi.advanceTimersByTimeAsync(1_000))
+  expect(onBreakEndingSoon).toHaveBeenCalledTimes(1)
+
+  await act(() => vi.advanceTimersByTimeAsync(60_000))
+  expect(onBreakEndingSoon).toHaveBeenCalledTimes(1)
 })
 
 test('集中切れ通知からの休憩要求で休憩モードへ切り替える', async () => {
@@ -116,6 +143,42 @@ test('復元した経過時間を目標時間の進捗へ反映する', () => {
 
   expect(screen.getByRole('progressbar', { name: '目標時間の進捗' }))
     .toHaveAttribute('aria-valuenow', '50')
+})
+
+test('作業時間が目標時間へ達した時だけ一度通知する', async () => {
+  vi.useFakeTimers()
+  const onTargetReached = vi.fn()
+  render(
+    <Timer
+      initialElapsedMs={59_000}
+      onExit={vi.fn()}
+      onTargetReached={onTargetReached}
+      targetMinutes={1}
+    />,
+  )
+
+  fireEvent.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+  await act(() => vi.advanceTimersByTimeAsync(1_000))
+
+  expect(onTargetReached).toHaveBeenCalledTimes(1)
+
+  await act(() => vi.advanceTimersByTimeAsync(5_000))
+  expect(onTargetReached).toHaveBeenCalledTimes(1)
+})
+
+test('復元時に目標時間へ到達済みの場合は再通知しない', () => {
+  const onTargetReached = vi.fn()
+
+  render(
+    <Timer
+      initialElapsedMs={60_000}
+      onExit={vi.fn()}
+      onTargetReached={onTargetReached}
+      targetMinutes={1}
+    />,
+  )
+
+  expect(onTargetReached).not.toHaveBeenCalled()
 })
 
 test('休憩へ切り替えてもシークバーの見た目は変化しない', async () => {
