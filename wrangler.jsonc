@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "ayumoro-do",
+  "compatibility_date": "2026-09-12",
+  "assets": {
+    // Viteが生成した静的ファイルをWorkers Assetsとして配信する。
+    "directory": "./dist",
+    // 画面URLへ直接アクセスした場合もReactアプリのindex.htmlを返す。
+    "not_found_handling": "single-page-application"
+  }
+}
