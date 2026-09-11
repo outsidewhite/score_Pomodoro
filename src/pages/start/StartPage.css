@@ -126,80 +126,93 @@
   content: '';
 }
 
+/* 直接入力の時:分を上に大きく置き、その下のホイールと同じ値を表示する。 */
 .setting-card__control {
-  display: grid;
+  display: flex;
   margin-top: var(--space-8);
   padding: var(--space-5);
+  flex-direction: column;
   align-items: center;
-  grid-template-columns: 44px 1fr 44px;
-  gap: var(--space-3);
+  gap: var(--space-4);
   border-radius: var(--radius-md);
   background: #fff;
 }
 
-.setting-card__control > button {
-  display: grid;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  place-items: center;
-  border: 1px solid var(--color-border);
-  border-radius: 50%;
-  color: var(--panel-strong);
-  background: var(--panel-soft);
-  font-size: 22px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: transform 160ms ease, background-color 160ms ease;
-}
-
-.setting-card__control > button:not(:disabled):hover {
-  background: var(--panel-color);
-  transform: scale(1.05);
-}
-
-.setting-card__control > button:focus-visible,
-.setting-card__control input:focus-visible {
-  outline: 3px solid rgb(23 106 115 / 24%);
-  outline-offset: 2px;
-}
-
-.setting-card__control > button:disabled {
-  cursor: not-allowed;
-  opacity: 0.35;
-}
-
-.setting-card__control label {
+.target-time-fields {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: center;
-  gap: var(--space-2);
 }
 
-.setting-card__control input {
-  width: 3ch;
-  padding: 0;
+.target-time-fields__item {
+  display: flex;
+  align-items: flex-start;
+}
+
+.target-time-fields__separator {
+  padding: 0 var(--space-2);
+  color: var(--panel-strong);
+  font-size: clamp(40px, 4.5vw, 56px);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.target-time-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.target-time-field input {
+  width: 2.4ch;
+  padding: 0 var(--space-1);
   border: 0;
+  border-bottom: 2px solid var(--color-border);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   color: var(--panel-strong);
   background: transparent;
+  font: inherit;
   font-size: clamp(44px, 5vw, 62px);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  text-align: right;
-  appearance: textfield;
+  text-align: center;
+  transition: border-color 160ms ease, background-color 160ms ease;
 }
 
-.setting-card__control input::-webkit-inner-spin-button,
-.setting-card__control input::-webkit-outer-spin-button {
-  margin: 0;
-  appearance: none;
+.target-time-field input:hover {
+  background: var(--panel-soft);
 }
 
-.setting-card__control small {
+.target-time-field input:focus-visible {
+  border-bottom-color: var(--color-primary);
+  outline: 3px solid rgb(23 106 115 / 24%);
+  outline-offset: 2px;
+}
+
+.target-time-field input[aria-invalid='true'] {
+  border-bottom-color: #b42318;
+}
+
+.target-time-field label {
   color: var(--color-text-muted);
   font-size: 13px;
   font-weight: 700;
+}
+
+/* 空の間もaria-live領域として残し、余白だけを打ち消す。 */
+.setting-card__errors:empty {
+  margin-top: calc(-1 * var(--space-4));
+}
+
+.setting-card__errors p {
+  margin: 0;
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+  text-align: center;
 }
 
 .start-page__action {
@@ -273,12 +286,10 @@
 
   .setting-card__control {
     padding: var(--space-4);
-    grid-template-columns: 40px 1fr 40px;
-    gap: var(--space-2);
+    gap: var(--space-3);
   }
 
-  .setting-card__control > button {
-    width: 40px;
-    height: 40px;
+  .setting-card__errors:empty {
+    margin-top: calc(-1 * var(--space-3));
   }
 }

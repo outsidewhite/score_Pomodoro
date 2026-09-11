@@ -1,6 +1,16 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
+import {
+  formatTimeUnit,
+  getTimeUnitError,
+  parseTimeUnit,
+  splitTargetMinutes,
+  toTargetMinutes,
+  type TargetTimeParts,
+  type TargetTimeUnit,
+} from './targetTime.ts'
+import { TargetTimeWheel } from './TargetTimeWheel.tsx'
 import './StartPage.css'
 
 export type SessionSettings = {
@@ -14,13 +24,24 @@ type StartPageProps = {
   onStart: (settings: SessionSettings) => void | Promise<void>
 }
 
+type TargetTimeInputs = Record<TargetTimeUnit, string>
+
 const DEFAULT_SETTINGS: SessionSettings = {
   targetMinutes: 25,
 }
 
-function parseSettingValue(value: string) {
-  const parsedValue = Number(value)
-  return Number.isFinite(parsedValue) ? parsedValue : 0
+const UNITS: TargetTimeUnit[] = ['hours', 'minutes']
+
+const UNIT_LABEL: Record<TargetTimeUnit, string> = {
+  hours: '時間',
+  minutes: '分',
+}
+
+function formatTargetTimeInputs({ hours, minutes }: TargetTimeParts) {
+  return {
+    hours: formatTimeUnit(hours),
+    minutes: formatTimeUnit(minutes),
+  }
 }
 
 export function StartPage({
@@ -29,22 +50,71 @@ export function StartPage({
   isPreparing = false,
   onStart,
 }: StartPageProps) {
-  // 入力値へ独自の上限・下限を設けず、そのままセッション設定として扱う。
-  const [targetMinutesInput, setTargetMinutesInput] = useState(String(initialSettings.targetMinutes))
-  const targetMinutes = parseSettingValue(targetMinutesInput)
+  // 入力欄は入力途中の文字列を保持し、ホイールには最後に有効だった時・分を渡す。
+  const [wheelValue, setWheelValue] = useState(() =>
+    splitTargetMinutes(initialSettings.targetMinutes),
+  )
+  const [inputs, setInputs] = useState<TargetTimeInputs>(() =>
+    formatTargetTimeInputs(splitTargetMinutes(initialSettings.targetMinutes)),
+  )
+  // 空欄は入力途中にもなるため、フォーカスを外すか送信した後だけエラーとして示す。
+  const [touched, setTouched] = useState<Record<TargetTimeUnit, boolean>>({
+    hours: false,
+    minutes: false,
+  })
+  const hoursInputRef = useRef<HTMLInputElement>(null)
+  const minutesInputRef = useRef<HTMLInputElement>(null)
+  const inputRefs = { hours: hoursInputRef, minutes: minutesInputRef }
 
-  const updateTargetMinutes = (value: number) => {
-    setTargetMinutesInput(String(value))
+  const getVisibleError = (unit: TargetTimeUnit) => {
+    const error = getTimeUnitError(inputs[unit], unit)
+    return error && (inputs[unit].trim() !== '' || touched[unit]) ? error : null
+  }
+  const visibleErrors: Record<TargetTimeUnit, string | null> = {
+    hours: getVisibleError('hours'),
+    minutes: getVisibleError('minutes'),
+  }
+
+  const handleInputChange = (unit: TargetTimeUnit, text: string) => {
+    setInputs((current) => ({ ...current, [unit]: text }))
+    const value = parseTimeUnit(text, unit)
+    if (value !== null) {
+      setWheelValue((current) =>
+        current[unit] === value ? current : { ...current, [unit]: value },
+      )
+    }
+  }
+
+  const handleInputBlur = (unit: TargetTimeUnit) => {
+    const value = parseTimeUnit(inputs[unit], unit)
+    if (value === null) {
+      setTouched((current) => ({ ...current, [unit]: true }))
+      return
+    }
+    // 入力を終えた時点でだけ2桁表示へ揃え、入力中の文字列は書き換えない。
+    setInputs((current) => ({ ...current, [unit]: formatTimeUnit(value) }))
+  }
+
+  const handleWheelChange = (unit: TargetTimeUnit, value: number) => {
+    setWheelValue((current) => ({ ...current, [unit]: value }))
+    setInputs((current) => ({ ...current, [unit]: formatTimeUnit(value) }))
+    setTouched((current) => ({ ...current, [unit]: false }))
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const nextSettings = {
-      targetMinutes,
+    const hours = parseTimeUnit(inputs.hours, 'hours')
+    const minutes = parseTimeUnit(inputs.minutes, 'minutes')
+
+    if (hours === null || minutes === null) {
+      setTouched({ hours: true, minutes: true })
+      inputRefs[hours === null ? 'hours' : 'minutes'].current?.focus()
+      return
     }
 
-    setTargetMinutesInput(String(nextSettings.targetMinutes))
-    onStart(nextSettings)
+    const nextTime = { hours, minutes }
+    setInputs(formatTargetTimeInputs(nextTime))
+    onStart({ targetMinutes: toTargetMinutes(nextTime) })
   }
 
   return (
@@ -73,30 +143,51 @@ export function StartPage({
             </div>
 
             <div className="setting-card__control">
-              <button
-                type="button"
-                aria-label="目標時間を1分減らす"
-                onClick={() => updateTargetMinutes(targetMinutes - 1)}
-              >
-                −
-              </button>
-              <label>
-                <span className="sr-only">目標時間（分）</span>
-                <input
-                  type="number"
-                  step="any"
-                  value={targetMinutesInput}
-                  onChange={(event) => setTargetMinutesInput(event.target.value)}
-                />
-                <small>分</small>
-              </label>
-              <button
-                type="button"
-                aria-label="目標時間を1分増やす"
-                onClick={() => updateTargetMinutes(targetMinutes + 1)}
-              >
-                ＋
-              </button>
+              <div className="target-time-fields">
+                {UNITS.map((unit, index) => (
+                  <div className="target-time-fields__item" key={unit}>
+                    {index > 0 && (
+                      <span className="target-time-fields__separator" aria-hidden="true">
+                        :
+                      </span>
+                    )}
+                    <div className="target-time-field">
+                      <input
+                        ref={inputRefs[unit]}
+                        id={`target-time-${unit}`}
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        maxLength={2}
+                        value={inputs[unit]}
+                        aria-invalid={visibleErrors[unit] ? true : undefined}
+                        aria-describedby={
+                          visibleErrors[unit] ? `target-time-${unit}-error` : undefined
+                        }
+                        onBlur={() => handleInputBlur(unit)}
+                        onChange={(event) => handleInputChange(unit, event.target.value)}
+                      />
+                      <label htmlFor={`target-time-${unit}`}>
+                        <span className="sr-only">目標時間の</span>
+                        {UNIT_LABEL[unit]}
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <TargetTimeWheel value={wheelValue} onChange={handleWheelChange} />
+
+              {/* 領域を常に置いておき、エラー文の追加をスクリーンリーダーへ確実に伝える。 */}
+              <div className="setting-card__errors" aria-live="polite">
+                {UNITS.map((unit) =>
+                  visibleErrors[unit] ? (
+                    <p key={unit} id={`target-time-${unit}-error`}>
+                      {visibleErrors[unit]}
+                    </p>
+                  ) : null,
+                )}
+              </div>
             </div>
           </section>
         </div>

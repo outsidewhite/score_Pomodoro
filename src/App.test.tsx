@@ -149,6 +149,64 @@ describe('measurementの再読み込み', () => {
 
     expect(measurementPageMock.mock.calls.at(-1)?.[0].journey).toEqual(journey)
   })
+
+  test('目標時間0分のセッションも再読み込み後に復元する', () => {
+    const session = createScoringSession(0)
+    saveScoringSession(session)
+
+    render(<App />)
+
+    const props = measurementPageMock.mock.calls.at(-1)?.[0]
+    expect(props.sessionId).toBe(session.sessionId)
+    expect(props.targetMinutes).toBe(0)
+  })
+})
+
+describe('開始画面からの計測開始', () => {
+  const originalMediaDevices = navigator.mediaDevices
+
+  beforeEach(() => {
+    measurementPageMock.mockClear()
+    window.sessionStorage.clear()
+    window.history.replaceState(null, '', '/start')
+  })
+
+  afterEach(() => {
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: originalMediaDevices,
+    })
+    window.history.replaceState(null, '', '/start')
+  })
+
+  test('00:00で開始すると目標時間0分として計測画面へ渡し、保存する', async () => {
+    const user = userEvent.setup()
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn(async () => ({
+          getTracks: () => [new FakeTrack()],
+        })),
+      },
+    })
+
+    render(<App />)
+
+    const minutesInput = screen.getByRole('textbox', { name: '目標時間の分' })
+    await user.clear(minutesInput)
+    await user.type(minutesInput, '0')
+    await user.click(screen.getByRole('button', { name: 'START' }))
+
+    await screen.findByTestId('measurement-page')
+    expect(window.location.pathname).toBe('/measurement')
+    expect(measurementPageMock.mock.calls.at(-1)?.[0].targetMinutes).toBe(0)
+    await waitFor(() => {
+      const stored = JSON.parse(
+        window.sessionStorage.getItem('score-pomodoro:scoring-session') ?? 'null',
+      )
+      expect(stored.targetMinutes).toBe(0)
+    })
+  })
 })
 
 describe('計測中のカメラ切断', () => {
