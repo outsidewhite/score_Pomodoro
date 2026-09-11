@@ -147,6 +147,32 @@ describe('scoringSession', () => {
     expect(appendScoreInterval(session, incompleteInterval)).toBe(session)
   })
 
+  test('目標時間0分のセッションを保存・復元できる', () => {
+    const session = createScoringSession(0)
+    session.intervals = [
+      createInterval(`${session.sessionId}:interval:1`, 70, 2),
+    ]
+
+    saveScoringSession(session)
+
+    expect(loadScoringSession()).toEqual({
+      ...session,
+      nextIntervalNumber: 2,
+    })
+  })
+
+  test.each([-1, 25.5, Number.NaN])(
+    '目標時間が%sの保存データは復元しない',
+    (targetMinutes) => {
+      window.sessionStorage.setItem(
+        'score-pomodoro:scoring-session',
+        JSON.stringify({ ...createScoringSession(), targetMinutes }),
+      )
+
+      expect(loadScoringSession()).toBeNull()
+    },
+  )
+
   test('数値項目が壊れた保存データは利用しない', () => {
     const session = createScoringSession()
     session.intervals = [createInterval('1', Number.NaN, 1)]
