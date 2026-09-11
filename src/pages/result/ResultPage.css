@@ -66,7 +66,7 @@
 .result-page__details {
   display: grid;
   margin: var(--space-6) 0;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-3);
 }
 
@@ -94,5 +94,9 @@
 
   .result-page__card {
     padding: var(--space-5);
+  }
+
+  .result-page__details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

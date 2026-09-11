@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { toast } from 'sonner'
@@ -7,6 +7,7 @@ import {
   createTimerSession,
   saveTimerSession,
 } from '../../features/session/timerSession.ts'
+import { createJourney } from '../../features/trip/createJourney.ts'
 import type { MeasurementStatus } from '../../shared/types/measurement.ts'
 import { MeasurementPage } from './MeasurementPage.tsx'
 
@@ -49,6 +50,8 @@ function measurementPageElement(
         cameraStream={cameraStream}
         elapsedMs={0}
         isPreparingCamera={false}
+        journey={createJourney(() => 0)}
+        latestEarnedScore={null}
         nextIntervalNumber={1}
         onBaselineChange={vi.fn()}
         onCameraRetry={vi.fn()}
@@ -139,8 +142,9 @@ describe('MeasurementPageのモデル準備', () => {
     renderMeasurementPage()
 
     expect(screen.getByText('00:01:00')).toBeInTheDocument()
-    expect(screen.getByText('集中')).toBeInTheDocument()
-    expect(screen.getByText('離席')).toBeInTheDocument()
+    const sessionLog = screen.getByRole('region', { name: 'セッションログ' })
+    expect(within(sessionLog).getByText('集中')).toBeInTheDocument()
+    expect(within(sessionLog).getByText('離席')).toBeInTheDocument()
 
     act(() => getLatestScoringCallbacks().onModelReady())
     expect(

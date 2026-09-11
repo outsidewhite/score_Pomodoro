@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { CAMERA_DISCONNECTED_MESSAGE } from './features/camera/useCameraDisconnect.ts'
 import type { PostureBaseline } from './features/scoring/intervalScoring.ts'
 import { createScoringSession, saveScoringSession } from './features/scoring/scoringSession.ts'
+import { createJourney } from './features/trip/createJourney.ts'
+import { saveJourneySession } from './features/trip/journeySession.ts'
 import App from './App.tsx'
 
 const measurementPageMock = vi.hoisted(() => vi.fn())
@@ -135,6 +137,18 @@ describe('measurementの再読み込み', () => {
       'old-session',
     )
   })
+
+  test('採点セッションに紐づく旅のルートを再読み込み後も復元する', () => {
+    const session = createScoringSession()
+    const values = [0.999, 0.999]
+    const journey = createJourney(() => values.shift() ?? 0)
+    saveScoringSession(session)
+    saveJourneySession(session.sessionId, journey)
+
+    render(<App />)
+
+    expect(measurementPageMock.mock.calls.at(-1)?.[0].journey).toEqual(journey)
+  })
 })
 
 describe('計測中のカメラ切断', () => {
@@ -258,6 +272,7 @@ describe('計測中のカメラ切断', () => {
       window.sessionStorage.getItem('score-pomodoro:scoring-session') ?? 'null',
     )
     expect(stored.intervals).toHaveLength(1)
+    expect(stored.baseline).toBeNull()
     expect(stored.nextIntervalNumber).toBe(2)
     // 切断ではAppを再生成しないため、基準姿勢はメモリ上で引き継がれる。
     expect(measurementPageMock.mock.calls.at(-1)?.[0].baseline).toEqual(baseline)

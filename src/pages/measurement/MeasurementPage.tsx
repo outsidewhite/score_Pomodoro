@@ -13,6 +13,7 @@ import { watchVideoPlayback } from '../../features/camera/videoPlaybackMonitor.t
 import { usePoseScoring } from '../../features/pose/usePoseScoring.ts'
 import { useFocusDropNotification } from '../../features/scoring/useFocusDropNotification.ts'
 import type {
+  EarnedScore,
   PostureBaseline,
   ScoreIntervalResult,
 } from '../../features/scoring/intervalScoring.ts'
@@ -22,6 +23,8 @@ import {
   saveTimerSession,
   type TimerSession,
 } from '../../features/session/timerSession.ts'
+import type { Journey } from '../../features/trip/types.ts'
+import { getJourneyMotionState } from '../../features/trip/getJourneyMotionState.ts'
 import type { MeasurementStatus } from '../../shared/types/measurement.ts'
 import './MeasurementPage.css'
 
@@ -38,6 +41,8 @@ type MeasurementPageProps = {
   cameraStream: MediaStream | null
   elapsedMs: number
   isPreparingCamera: boolean
+  journey: Journey
+  latestEarnedScore: EarnedScore | null
   nextIntervalNumber: number
   onBaselineChange: (baseline: PostureBaseline) => void
   onCameraRetry: () => void
@@ -58,6 +63,8 @@ export function MeasurementPage({
   cameraStream,
   elapsedMs,
   isPreparingCamera,
+  journey,
+  latestEarnedScore,
   nextIntervalNumber,
   onBaselineChange,
   onCameraRetry,
@@ -275,6 +282,13 @@ export function MeasurementPage({
   // ヘッダーの表示はタイマーの状態から導き、ランプ色と時刻の文字色を対応させる。
   const timerStatus = getTimerStatus(timerMode)
 
+  const journeyMotionState = getJourneyMotionState({
+    hasStarted: timerLogs.length > 0,
+    isPreparing: status !== 'measuring' || modelLoadStatus !== 'ready',
+    latestEarnedScore,
+    timerMode,
+  })
+
   return (
     <main className="measurement-page">
       <AppHeader
@@ -373,6 +387,8 @@ export function MeasurementPage({
         <ScorePanel
           analysisError={analysisError}
           analysisStatus={analysisStatus}
+          journey={journey}
+          motionState={journeyMotionState}
           originalScore={originalScore}
           scoreIncrement={scoreIncrement}
         />

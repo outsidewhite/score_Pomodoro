@@ -122,6 +122,7 @@ export function getShoulderPose(
 
 export function getEarnedScore(totalScore: number): EarnedScore {
   if (!Number.isFinite(totalScore) || totalScore <= 0) return 0
+  // 確定した獲得スコア仕様に従い、40点・80点を段階の上限とする。
   if (totalScore <= 40) return 1
   if (totalScore <= 80) return 2
   return 3
