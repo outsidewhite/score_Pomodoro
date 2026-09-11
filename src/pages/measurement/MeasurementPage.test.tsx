@@ -1,8 +1,10 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { toast } from 'sonner'
-import { AppToaster } from '../../components/Notification/AppToaster.tsx'
+import {
+  AppToaster,
+  dismissAllNotifications,
+} from '../../components/Notification/AppToaster.tsx'
 import {
   createTimerSession,
   saveTimerSession,
@@ -85,7 +87,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  toast.dismiss()
+  dismissAllNotifications()
   vi.restoreAllMocks()
 })
 

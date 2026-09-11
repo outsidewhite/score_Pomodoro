@@ -1,5 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { toast } from 'sonner'
+import {
+  dismissAnalysisErrorNotification,
+  dismissMeasurementNotifications,
+  showAnalysisErrorNotification,
+  showAwayDetectedNotification,
+  showBreakEndingSoonNotification,
+  showCalibrationRetryNotification,
+  showCalibrationSuccessNotification,
+  showCameraDisconnectedNotification,
+  showModelLoadErrorNotification,
+  showModelLoadingNotification,
+  showModelReadyNotification,
+  showTargetReachedNotification,
+} from '../../components/Notification/AppToaster.tsx'
 import { SessionLog } from '../../components/Timer/SessionLog.tsx'
 import { Timer } from '../../components/Timer/Timer.tsx'
 import type { TimerLogEntry, TimerMode } from '../../components/Timer/timerTypes.ts'
@@ -8,7 +21,6 @@ import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
 import { getTimerStatus } from '../../components/ui/statusTone.ts'
 import type { ModelStatus } from '../../features/camera/cameraTypes.ts'
-import { showCameraDisconnectedToast } from '../../features/camera/useCameraDisconnect.ts'
 import { watchVideoPlayback } from '../../features/camera/videoPlaybackMonitor.ts'
 import { usePoseScoring } from '../../features/pose/usePoseScoring.ts'
 import { useFocusDropNotification } from '../../features/scoring/useFocusDropNotification.ts'
@@ -27,12 +39,6 @@ import type { Journey } from '../../features/trip/types.ts'
 import { getJourneyMotionState } from '../../features/trip/getJourneyMotionState.ts'
 import type { MeasurementStatus } from '../../shared/types/measurement.ts'
 import './MeasurementPage.css'
-
-// 同じ事象の通知が積み重ならないよう、姿勢解析エラーの通知idは固定にする。
-const POSE_ANALYSIS_ERROR_TOAST_ID = 'pose-analysis-error'
-const POSE_MODEL_LOAD_TOAST_ID = 'pose-model-load'
-const AUTO_AWAY_TOAST_ID = 'auto-away'
-const CALIBRATION_TOAST_ID = 'posture-calibration'
 
 type MeasurementPageProps = {
   baseline: PostureBaseline | null
@@ -150,61 +156,39 @@ export function MeasurementPage({
   const handleModelLoadStart = useCallback(() => {
     setModelLoadStatus('loading')
     setAnalysisError(null)
-    // 読み込み完了まで同じ通知を維持し、成功・失敗時に同じidで更新する。
-    toast.loading('モデル読み込み中です', {
-      duration: Infinity,
-      id: POSE_MODEL_LOAD_TOAST_ID,
-    })
+    showModelLoadingNotification()
   }, [])
   const handleModelReady = useCallback(() => {
     setModelLoadStatus('ready')
     setAnalysisError(null)
-    toast.dismiss(POSE_ANALYSIS_ERROR_TOAST_ID)
-    toast.success('読み込みに成功しました！', {
-      id: POSE_MODEL_LOAD_TOAST_ID,
-    })
+    dismissAnalysisErrorNotification()
+    showModelReadyNotification()
   }, [])
   const handleModelLoadError = useCallback((message: string) => {
     setModelLoadStatus('error')
     setAnalysisError(message)
     // ユーザー操作があった場合だけモデルの再読み込みを実行する。
-    toast.error('モデルの読み込みに失敗しました', {
-      action: {
-        label: '再読み込み',
-        onClick: requestModelReload,
-      },
-      description: message,
-      duration: Infinity,
-      id: POSE_MODEL_LOAD_TOAST_ID,
-    })
+    showModelLoadErrorNotification(message, requestModelReload)
   }, [requestModelReload])
   const handleAnalysisError = useCallback((message: string) => {
     setAnalysisError(message)
-    // 同じidの通知は新規追加ではなく更新されるため、連続発生しても1件だけ表示される。
-    toast.error('姿勢解析でエラーが発生しました', {
-      description: message,
-      id: POSE_ANALYSIS_ERROR_TOAST_ID,
-    })
+    showAnalysisErrorNotification(message)
   }, [])
   const handleTimerModeChange = useCallback((nextMode: TimerMode) => {
     setTimerMode(nextMode)
     handleFocusStateChange(nextMode === 'focus')
     setAnalysisError(null)
-    toast.dismiss(POSE_ANALYSIS_ERROR_TOAST_ID)
+    dismissAnalysisErrorNotification()
   }, [handleFocusStateChange])
   const handleAwayDetected = useCallback(() => {
     setAutoPauseRequest((request) => request + 1)
-    toast.warning('離席を検出したためタイマーを停止しました', {
-      id: AUTO_AWAY_TOAST_ID,
-    })
+    showAwayDetectedNotification()
   }, [])
   const handleIntervalComplete = useCallback((result: ScoreIntervalResult) => {
     if (result.isCalibration && !result.calibrationSucceeded) {
-      toast.warning('基準姿勢を取得できなかったため、次の1分で再試行します', {
-        id: CALIBRATION_TOAST_ID,
-      })
+      showCalibrationRetryNotification()
     } else if (result.calibrationSucceeded) {
-      toast.success('基準姿勢を保存しました', { id: CALIBRATION_TOAST_ID })
+      showCalibrationSuccessNotification()
     }
     handleFocusDropIntervalComplete(result)
     onScoreUpdate(result)
@@ -229,7 +213,7 @@ export function MeasurementPage({
     // トラックが生きたまま映像だけ止まるケースも、通常の切断処理へ合流させる。
     return watchVideoPlayback({
       onFreeze: () => {
-        showCameraDisconnectedToast()
+        showCameraDisconnectedNotification()
         onCameraFreeze()
       },
       video,
@@ -238,8 +222,7 @@ export function MeasurementPage({
 
   useEffect(() => () => {
     // 読み込み途中で画面を離れた場合に、待機中の通知を次画面へ残さない。
-    toast.dismiss(POSE_MODEL_LOAD_TOAST_ID)
-    toast.dismiss(POSE_ANALYSIS_ERROR_TOAST_ID)
+    dismissMeasurementNotifications()
   }, [])
 
   useEffect(() => {
@@ -373,9 +356,11 @@ export function MeasurementPage({
                   initialElapsedMs={initialElapsedMs}
                   initialLogId={initialLogId}
                   onClockUpdate={handleTimerClockUpdate}
+                  onBreakEndingSoon={showBreakEndingSoonNotification}
                   onExit={onFinish}
                   onLogEntry={handleTimerLog}
                   onModeChange={handleTimerModeChange}
+                  onTargetReached={showTargetReachedNotification}
                   startDisabled={modelLoadStatus !== 'ready'}
                   targetMinutes={targetMinutes}
                 />

@@ -1,8 +1,10 @@
 import { act, render, renderHook, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { toast } from 'sonner'
-import { AppToaster } from '../../components/Notification/AppToaster.tsx'
+import {
+  AppToaster,
+  dismissAllNotifications,
+} from '../../components/Notification/AppToaster.tsx'
 import { useCameraDisconnect } from './useCameraDisconnect.ts'
 
 class FakeTrack extends EventTarget {
@@ -34,7 +36,7 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 afterEach(() => {
-  toast.dismiss()
+  dismissAllNotifications()
 })
 
 describe('useCameraDisconnect', () => {

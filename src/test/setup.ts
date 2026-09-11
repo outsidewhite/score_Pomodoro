@@ -10,6 +10,9 @@ if (!Element.prototype.setPointerCapture) {
   Element.prototype.hasPointerCapture = () => false
 }
 
+// jsdomには音声再生処理が無いため、通知音を解決済みPromiseとして扱う。
+HTMLMediaElement.prototype.play = () => Promise.resolve()
+
 // 各テスト後にレンダリング結果とDOMを片付け、テスト間の影響を防ぐ。
 afterEach(() => {
   cleanup()
