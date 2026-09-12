@@ -16,6 +16,7 @@ type TimerProps = {
   initialLogId?: number
   onBreakEndingSoon?: () => void
   onClockUpdate?: (currentTimeMs: number) => void
+  onElapsedTimeChange?: (elapsedMs: number) => void
   onExit: () => void
   onLogEntry?: (entry: TimerLogEntry) => void
   onModeChange?: (mode: TimerMode) => void
@@ -84,6 +85,7 @@ export function Timer({
   initialLogId = 0,
   onBreakEndingSoon,
   onClockUpdate,
+  onElapsedTimeChange,
   onExit,
   onLogEntry,
   onModeChange,
@@ -354,6 +356,11 @@ export function Timer({
       ? Math.max(0, displayNow - activeStartedAt)
       : 0
   const totalWorkMs = durations.focus + durations.break + activeWorkMs
+
+  useEffect(() => {
+    // 到着履歴にも、メインタイマーと同じ表示値を渡す。
+    onElapsedTimeChange?.(truncateToWholeSeconds(totalWorkMs))
+  }, [onElapsedTimeChange, totalWorkMs])
 
   useEffect(() => {
     const targetMs = targetMinutes * 60_000

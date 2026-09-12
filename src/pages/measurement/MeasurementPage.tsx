@@ -37,6 +37,7 @@ import {
 } from '../../features/session/timerSession.ts'
 import type { Journey } from '../../features/trip/types.ts'
 import { getJourneyMotionState } from '../../features/trip/getJourneyMotionState.ts'
+import { loadJourneyArrivals, recordJourneyArrivals, saveJourneyArrivals } from '../../features/trip/journeyHistory.ts'
 import type { MeasurementStatus } from '../../shared/types/measurement.ts'
 import './MeasurementPage.css'
 
@@ -54,6 +55,7 @@ type MeasurementPageProps = {
   onCameraRetry: () => void
   onCameraFreeze?: () => void
   onFinish: () => void
+  onDebugEarnedScoreChange?: (score: number | null) => void
   onScoreUpdate: (result: ScoreIntervalResult) => void
   originalScore: number
   scoreIncrement: number | null
@@ -76,6 +78,7 @@ export function MeasurementPage({
   onCameraRetry,
   onCameraFreeze,
   onFinish,
+  onDebugEarnedScoreChange,
   onScoreUpdate,
   originalScore,
   scoreIncrement,
@@ -84,6 +87,24 @@ export function MeasurementPage({
   targetMinutes = 25,
 }: MeasurementPageProps) {
   const [initialTimerSession] = useState(() => loadTimerSession(sessionId))
+  const [arrivals, setArrivals] = useState(() => loadJourneyArrivals(sessionId, journey))
+  const totalScore = originalScore + (scoreIncrement ?? 0)
+  const previousScoreRef = useRef(totalScore)
+  const timerElapsedRef = useRef(elapsedMs)
+  const handleElapsedTimeChange = useCallback((value: number) => {
+    timerElapsedRef.current = value
+  }, [])
+
+  useEffect(() => {
+    const previousScore = previousScoreRef.current
+    previousScoreRef.current = totalScore
+    if (totalScore <= previousScore) return
+    // 採点が確定して目的地を跨いだ瞬間だけ、共通の到着履歴を保存する。
+    const next = recordJourneyArrivals(arrivals, journey, previousScore, totalScore, timerElapsedRef.current)
+    if (next === arrivals) return
+    saveJourneyArrivals(sessionId, journey, next)
+    setArrivals(next)
+  }, [arrivals, journey, sessionId, totalScore])
   const [isCameraBlurred, setIsCameraBlurred] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const [timerNow, setTimerNow] = useState(initialTimerSession.lastObservedAt)
@@ -266,8 +287,7 @@ export function MeasurementPage({
   const timerStatus = getTimerStatus(timerMode)
 
   const journeyMotionState = getJourneyMotionState({
-    hasStarted: timerLogs.length > 0,
-    isPreparing: status !== 'measuring' || modelLoadStatus !== 'ready',
+    hasStarted: initialElapsedMs > 0 || timerLogs.some(({ mode }) => mode !== 'away'),
     latestEarnedScore,
     timerMode,
   })
@@ -356,6 +376,7 @@ export function MeasurementPage({
                   initialElapsedMs={initialElapsedMs}
                   initialLogId={initialLogId}
                   onClockUpdate={handleTimerClockUpdate}
+                  onElapsedTimeChange={handleElapsedTimeChange}
                   onBreakEndingSoon={showBreakEndingSoonNotification}
                   onExit={onFinish}
                   onLogEntry={handleTimerLog}
@@ -370,10 +391,13 @@ export function MeasurementPage({
         </div>
 
         <ScorePanel
+          arrivals={arrivals}
+          isFocused={timerMode === 'focus'}
           analysisError={analysisError}
           analysisStatus={analysisStatus}
           journey={journey}
           motionState={journeyMotionState}
+          onDebugEarnedScoreChange={onDebugEarnedScoreChange}
           originalScore={originalScore}
           scoreIncrement={scoreIncrement}
         />
