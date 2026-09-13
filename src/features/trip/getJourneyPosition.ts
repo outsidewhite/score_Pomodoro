@@ -2,7 +2,7 @@ import type { Journey, JourneyPosition, RoutePoint } from './types.ts'
 
 export const SCORE_PER_DESTINATION = 45
 
-function getJourneyPoints(journey: Journey): readonly RoutePoint[] {
+export function getJourneyPoints(journey: Journey): readonly RoutePoint[] {
   return [
     ...journey.japanRoute.points,
     ...journey.worldRoute.points,

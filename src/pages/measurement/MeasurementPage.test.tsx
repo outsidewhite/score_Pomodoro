@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import {
@@ -28,6 +28,7 @@ type PoseScoringCallbacks = {
 }
 
 type RenderOverrides = {
+  scoreIncrement?: number
   cameraError?: string | null
   cameraStopRequest?: number
   cameraStream?: MediaStream | null
@@ -60,7 +61,7 @@ function measurementPageElement(
         onFinish={vi.fn()}
         onScoreUpdate={vi.fn()}
         originalScore={0}
-        scoreIncrement={0}
+        scoreIncrement={overrides.scoreIncrement ?? 0}
         sessionId="test-session"
         status={status}
       />
@@ -92,6 +93,52 @@ afterEach(() => {
 })
 
 describe('MeasurementPageのモデル準備', () => {
+  test('モデルが準備できても初回開始までは自宅、開始後の再読込待ちは停止になる', async () => {
+    const user = userEvent.setup()
+    renderMeasurementPage()
+    act(() => getLatestScoringCallbacks().onModelReady())
+    expect(screen.getByText('準備ステージ')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+    expect(screen.getByText('ゆっくり前進中')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'タイマーを停止する' }))
+    act(() => getLatestScoringCallbacks().onModelLoadStart())
+    expect(screen.getByText('停止中')).toBeInTheDocument()
+    expect(screen.queryByText('準備ステージ')).not.toBeInTheDocument()
+  })
+
+  test('タイマーの実測値を到着時に固定し、開閉と再読込でも同じ履歴を表示する', () => {
+    vi.useFakeTimers()
+    try {
+      // 仮想時間下では同期クリックを使い、入力処理の待機とクロックを分離する。
+      const page = renderMeasurementPage()
+      act(() => getLatestScoringCallbacks().onModelReady())
+      fireEvent.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+      act(() => { vi.advanceTimersByTime(60_000) })
+      fireEvent.click(screen.getByRole('button', { name: '休憩に入る' }))
+      act(() => { vi.advanceTimersByTime(15_000) })
+      fireEvent.click(screen.getByRole('button', { name: '集中に戻る' }))
+      act(() => { vi.advanceTimersByTime(2_000) })
+      // 採点確定による累積点の更新を再現し、休憩を含む表示時刻を記録する。
+      page.rerender(measurementPageElement('measuring', { scoreIncrement: 45 }))
+      fireEvent.click(screen.getByRole('button', { name: '休憩に入る' }))
+      fireEvent.click(screen.getByRole('button', { name: '地図を開く' }))
+      expect(within(screen.getByRole('dialog')).getByText('00:01:17')).toBeInTheDocument()
+      act(() => { vi.advanceTimersByTime(5_000) })
+      expect(within(screen.getByRole('region', { name: 'タイマー' })).getByText('00:01:22')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: '目的地リストを開く' }))
+      expect(within(screen.getByRole('dialog')).getByText('00:01:17')).toBeInTheDocument()
+      expect(within(screen.getByRole('dialog')).getByText('00:16:17')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: '集中に戻る' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      page.unmount()
+      renderMeasurementPage('measuring', { scoreIncrement: 45 })
+      fireEvent.click(screen.getByRole('button', { name: '目的地リストを開く' }))
+      expect(within(screen.getByRole('dialog')).getByText('00:01:17')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   test('読み込み完了までタイマー開始を無効化して通知する', async () => {
     renderMeasurementPage()
     const callbacks = getLatestScoringCallbacks()

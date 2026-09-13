@@ -112,7 +112,7 @@
   text-align: right;
 }
 
-/* 開発中に、スコアを変更せず各ステージの動きを確認するための操作列。 */
+/* 開発中に、獲得スコアと各ステージの動きを確認するための操作列。 */
 .score-journey__debug-controls {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -134,6 +134,44 @@
 .score-journey__debug-groups {
   display: grid;
   gap: 4px;
+}
+
+/* 狭い表示幅でも入力欄と反映操作が収まるように折り返す。 */
+.score-journey__debug-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.score-journey__debug-score label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+}
+
+.score-journey__debug-score input {
+  width: 80px;
+  min-width: 0;
+  padding: 4px;
+  border: 1px solid #000;
+  border-radius: 0;
+  color: #000;
+  background: #fff;
+  font: inherit;
+}
+
+.score-journey__debug-score small {
+  flex-basis: 100%;
+  font-size: 8px;
+  text-align: right;
+}
+
+.score-journey__debug-score button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .score-journey__debug-group {

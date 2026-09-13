@@ -78,10 +78,13 @@ function App() {
     () => loadJourneySession(scoringSession.sessionId) ?? createJourney(),
   )
   const [cameraStopRequest, setCameraStopRequest] = useState(0)
+  // 手動変更分はメモリ上だけに保持し、実際の採点区間や最終評価を変更しない。
+  const [debugEarnedScoreOffset, setDebugEarnedScoreOffset] = useState(0)
   const cameraStreamRef = useRef<MediaStream | null>(null)
   const isPreparingCameraRef = useRef(false)
   const scoreResult = summarizeScoringSession(scoringSession)
-  const totalEarnedScore = getTotalEarnedScore(scoringSession)
+  const measuredEarnedScore = getTotalEarnedScore(scoringSession)
+  const totalEarnedScore = measuredEarnedScore + (import.meta.env.DEV ? debugEarnedScoreOffset : 0)
   const latestEarnedScore =
     scoringSession.intervals.at(-1)?.earnedScore ?? null
 
@@ -221,6 +224,15 @@ function App() {
     setScoringSession((currentSession) => ({ ...currentSession, baseline }))
   }, [])
 
+  const handleDebugEarnedScoreChange = (score: number | null) => {
+    if (!import.meta.env.DEV) return
+    // 差分を保持することで、手動設定後も通常の獲得スコアを加算できる。
+    if (score === null) setDebugEarnedScoreOffset(0)
+    else if (Number.isSafeInteger(score) && score >= 0) {
+      setDebugEarnedScoreOffset(score - measuredEarnedScore)
+    }
+  }
+
   const handleRestart = () => {
     stopCamera()
     clearScoringSession()
@@ -228,6 +240,7 @@ function App() {
     clearJourneySession()
     const nextSession = createScoringSession(settings.targetMinutes)
     setScoringSession(nextSession)
+    setDebugEarnedScoreOffset(0)
     setJourney(createJourney())
     window.history.pushState(null, '', '/start')
     setPage('start')
@@ -261,6 +274,7 @@ function App() {
           onCameraRetry={handleCameraRetry}
           onCameraFreeze={handleCameraDisconnect}
           onFinish={handleFinish}
+          onDebugEarnedScoreChange={import.meta.env.DEV ? handleDebugEarnedScoreChange : undefined}
           onScoreUpdate={handleScoreUpdate}
           originalScore={INITIAL_SCORE}
           scoreIncrement={totalEarnedScore}

@@ -193,9 +193,16 @@
 }
 
 @media (max-width: 980px) {
+  /* 縦並びではページをスクロールさせ、旅の履歴とタイマーの高さを確保する。 */
+  .measurement-page {
+    height: auto;
+    min-height: 100svh;
+    overflow: visible;
+  }
+
   .measurement-page__layout {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-rows: minmax(600px, auto) minmax(560px, auto);
   }
 }
 
