@@ -1,0 +1,126 @@
+/* 履歴は旅と同じ枠内に収め、タイマーの操作領域を覆わない。 */
+.journey-review {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  isolation: isolate;
+}
+
+.journey-review__animation { display: grid; min-height: 0; min-width: 0; }
+
+.journey-review .score-journey__header {
+  padding-right: 92px;
+  flex-wrap: wrap;
+}
+
+.journey-review__tools {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  display: flex;
+  gap: 6px;
+}
+
+.journey-review__icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  padding: 10px;
+  place-items: center;
+  border: 1px solid #000;
+  border-radius: 50%;
+  color: #000;
+  background: #fff;
+  cursor: pointer;
+}
+
+.journey-review__icon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.journey-review__icon:disabled { opacity: 0.35; cursor: not-allowed; }
+.journey-review__icon[aria-expanded='true'] { color: #fff; background: #000; }
+.journey-review :focus-visible { outline: 2px solid #000; outline-offset: 3px; }
+
+.journey-review__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
+  animation: journey-review-unfold 240ms ease-out both;
+}
+
+.journey-review__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 66px;
+  padding: 10px 106px 10px 12px;
+  border-bottom: 1px solid #000;
+  box-sizing: border-box;
+}
+
+.journey-review__header h2 { margin: 0; font-size: 14px; }
+.journey-review__content { overflow: auto; overscroll-behavior: contain; padding: 12px; }
+.journey-review__note { margin: 0 0 12px; font-size: 11px; color: #666; }
+.journey-review h3 { margin: 0; padding: 8px 0; font-size: 12px; border-bottom: 1px solid #bbb; }
+.journey-list section + section, .journey-map section + section { margin-top: 20px; }
+.journey-list ol { list-style: none; margin: 0; padding: 0; }
+.journey-list__stop { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px dashed #ddd; }
+.journey-list__stop > div { display: grid; gap: 4px; }
+.journey-list__stop strong { font-size: 13px; overflow-wrap: anywhere; }
+.journey-list__stop small { font-size: 10px; }
+.journey-list__stop--future { color: #767676; }
+.journey-list__time { text-align: right; flex-shrink: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.journey-list__stop--reached .journey-list__time { color: var(--color-success); }
+.journey-list__stop[aria-current='location'] { border-left: 3px solid #000; padding-left: 8px; }
+
+/* 地形を薄く敷き、目的地名・到着時刻と線の白黒を読み取りやすく保つ。 */
+/* 縦長の航路でも高さ300px以内に収め、縮小後の枠に空白を残さない。 */
+.journey-map svg { display: block; max-width: 100%; height: auto; margin-inline: auto; overflow: hidden; border: 1px solid #ddd; box-sizing: border-box; background: #fafafa; }
+.journey-map__terrain { fill: #e8e8e8; stroke: #aaa; stroke-width: 0.8; }
+.journey-map text { dominant-baseline: middle; paint-order: stroke; stroke: #fff; stroke-width: calc(2px * var(--map-text-scale, 1)); stroke-linejoin: round; }
+.journey-map__name { font-size: 14px; font-weight: 700; }
+.journey-map__time { font-size: 14px; font-variant-numeric: tabular-nums; }
+.journey-map__detail { font-size: 11px; fill: #666; }
+.journey-map__route { animation: journey-map-draw 600ms ease-out both; }
+.journey-map__current { animation: journey-map-pulse 2s ease-in-out infinite; }
+
+/* 地図には位置と番号を載せ、狭い画面でも地名と到着時刻が重ならない一覧を添える。 */
+/* 地図内は倍率を補正し、一覧は固定px指定で文字サイズを揃える。 */
+.journey-map__number { font-size: calc(12px * var(--map-text-scale, 1)); font-weight: 800; }
+.journey-map__north, .journey-map__terrain text { font-size: calc(11px * var(--map-text-scale, 1)); }
+.journey-map__caption { font-size: 9px; color: #666; line-height: 1.6; }
+.journey-map h3 { font-size: 11px; }
+.journey-map__caption a { color: inherit; }
+.journey-map__legend { list-style: none; padding: 0; margin: 0; }
+.journey-map__legend li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px dashed #ddd; }
+.journey-map__legend li[aria-current='location'] { border-left: 3px solid #000; padding-left: 8px; }
+.journey-map__legend li > div { display: grid; gap: 3px; min-width: 0; }
+.journey-map__legend strong { font-size: 11px; overflow-wrap: anywhere; }
+.journey-map__legend small { font-size: 9px; color: #666; }
+.journey-map__legend time { margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.journey-map__badge { display: grid; place-items: center; width: 20px; height: 20px; flex: 0 0 auto; border: 1px solid #000; border-radius: 50%; font-size: 10px; }
+.journey-map__badge--reached { background: #000; color: #fff; }
+
+@keyframes journey-review-unfold { from { opacity: 0; transform: translateY(-6px) scaleY(0.96); } }
+@keyframes journey-map-draw { from { opacity: 0; } }
+@keyframes journey-map-pulse { 50% { opacity: 0.25; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .journey-review__overlay, .journey-map__route, .journey-map__current { animation: none; }
+}

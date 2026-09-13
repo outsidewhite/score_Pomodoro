@@ -12,7 +12,6 @@ export type JourneyMotionState =
 
 type JourneyMotionContext = {
   hasStarted: boolean
-  isPreparing: boolean
   latestEarnedScore: EarnedScore | null
   timerMode: TimerMode
 }
@@ -20,15 +19,14 @@ type JourneyMotionContext = {
 // 画面の複数状態を、旅アニメーションが扱う単一の動きへ変換する。
 export function getJourneyMotionState({
   hasStarted,
-  isPreparing,
   latestEarnedScore,
   timerMode,
 }: JourneyMotionContext): JourneyMotionState {
-  if (isPreparing) return 'preparing'
-  if (!hasStarted) return 'idle'
+  // 初回のタイマー開始までだけ準備とし、再読み込みやモデル再取得では戻さない。
+  if (!hasStarted) return 'preparing'
   // 離席は独立した演出にせず、開始前と同じ停止状態として扱う。
   if (timerMode === 'away') return 'idle'
   if (timerMode === 'break') return 'break'
-  if (latestEarnedScore === null) return 'preparing'
+  if (latestEarnedScore === null) return 'score1'
   return `score${latestEarnedScore}`
 }

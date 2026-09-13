@@ -14,16 +14,20 @@ type TimerProps = {
   disabled?: boolean
   initialElapsedMs?: number
   initialLogId?: number
+  onBreakEndingSoon?: () => void
   onClockUpdate?: (currentTimeMs: number) => void
+  onElapsedTimeChange?: (elapsedMs: number) => void
   onExit: () => void
   onLogEntry?: (entry: TimerLogEntry) => void
   onModeChange?: (mode: TimerMode) => void
+  onTargetReached?: () => void
   startDisabled?: boolean
   // 目標作業時間は進捗シークバーの分母に使用する。未指定の場合は表示しない。
   targetMinutes?: number
 }
 
 const BREAK_LIMIT_MS = 10 * 60 * 1_000
+const BREAK_ENDING_SOON_MS = 60 * 1_000
 
 function truncateToWholeSeconds(durationMs: number) {
   return Math.floor(Math.max(0, durationMs) / 1_000) * 1_000
@@ -79,10 +83,13 @@ export function Timer({
   disabled = false,
   initialElapsedMs = 0,
   initialLogId = 0,
+  onBreakEndingSoon,
   onClockUpdate,
+  onElapsedTimeChange,
   onExit,
   onLogEntry,
   onModeChange,
+  onTargetReached,
   startDisabled = false,
   targetMinutes = 0,
 }: TimerProps) {
@@ -98,6 +105,10 @@ export function Timer({
   const cancelExitButtonRef = useRef<HTMLButtonElement>(null)
   const handledAutoBreakRequestRef = useRef(autoBreakRequest)
   const handledAutoPauseRequestRef = useRef(autoPauseRequest)
+  const hasNotifiedBreakEndingSoonRef = useRef(false)
+  const hasReachedTargetRef = useRef(
+    targetMinutes > 0 && initialElapsedMs >= targetMinutes * 60_000,
+  )
   const [activeStartedAt, setActiveStartedAt] = useState<number | null>(null)
   const [durations, setDurations] = useState<TimerDurations>(initialDurations)
   const [displayNow, setDisplayNow] = useState(0)
@@ -208,6 +219,7 @@ export function Timer({
     if (nextMode === 'break') {
       // 休憩へ入るたびに、10分制限の起点を更新する。
       breakStartedAtDurationRef.current = durationsRef.current.break
+      hasNotifiedBreakEndingSoonRef.current = false
     }
     setActiveStartedAt(now)
     syncClock(now)
@@ -272,6 +284,15 @@ export function Timer({
     const measuredBreakMs =
       durations.break - breakStartedAtDurationRef.current
     const remainingBreakMs = Math.max(0, BREAK_LIMIT_MS - measuredBreakMs)
+    let breakEndingSoonTimerId: number | null = null
+
+    if (!hasNotifiedBreakEndingSoonRef.current && onBreakEndingSoon) {
+      breakEndingSoonTimerId = window.setTimeout(() => {
+        // 同じ休憩中は停止・再開を挟んでも1回だけ通知する。
+        hasNotifiedBreakEndingSoonRef.current = true
+        onBreakEndingSoon()
+      }, Math.max(0, remainingBreakMs - BREAK_ENDING_SOON_MS))
+    }
 
     // 休憩として実際に計測した時間が10分に達したら、自動的に停止する。
     const breakLimitTimerId = window.setTimeout(() => {
@@ -296,8 +317,21 @@ export function Timer({
       emitLog('away', activeStartedAt + remainingBreakMs)
     }, remainingBreakMs)
 
-    return () => window.clearTimeout(breakLimitTimerId)
-  }, [activeStartedAt, durations.break, emitLog, isRunning, mode, syncClock])
+    return () => {
+      if (breakEndingSoonTimerId !== null) {
+        window.clearTimeout(breakEndingSoonTimerId)
+      }
+      window.clearTimeout(breakLimitTimerId)
+    }
+  }, [
+    activeStartedAt,
+    durations.break,
+    emitLog,
+    isRunning,
+    mode,
+    onBreakEndingSoon,
+    syncClock,
+  ])
 
   useEffect(() => {
     if (!isExitDialogOpen) {
@@ -322,6 +356,27 @@ export function Timer({
       ? Math.max(0, displayNow - activeStartedAt)
       : 0
   const totalWorkMs = durations.focus + durations.break + activeWorkMs
+
+  useEffect(() => {
+    // 到着履歴にも、メインタイマーと同じ表示値を渡す。
+    onElapsedTimeChange?.(truncateToWholeSeconds(totalWorkMs))
+  }, [onElapsedTimeChange, totalWorkMs])
+
+  useEffect(() => {
+    const targetMs = targetMinutes * 60_000
+    if (
+      hasReachedTargetRef.current ||
+      targetMs <= 0 ||
+      totalWorkMs < targetMs
+    ) {
+      return
+    }
+
+    // 同じセッションでは目標を初めて跨いだ時だけ通知する。
+    hasReachedTargetRef.current = true
+    onTargetReached?.()
+  }, [onTargetReached, targetMinutes, totalWorkMs])
+
   // 停止中は離席と同じ表示・外部判定にし、再開先のモードだけ内部に保持する。
   const effectiveMode: TimerMode = isRunning ? mode : 'away'
 

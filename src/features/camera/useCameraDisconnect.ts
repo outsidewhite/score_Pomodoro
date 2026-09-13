@@ -1,20 +1,12 @@
 import { useEffect, useRef } from 'react'
-import { toast } from 'sonner'
+import {
+  dismissCameraDisconnectedNotification,
+  showCameraDisconnectedNotification,
+} from '../../components/Notification/AppToaster.tsx'
 import { watchCameraStream } from './cameraStreamMonitor.ts'
 
-// 切断が連続しても表示が積み重ならないよう、カメラ切断の通知idは固定にする。
-export const CAMERA_DISCONNECTED_TOAST_ID = 'camera-disconnected'
-
-export const CAMERA_DISCONNECTED_MESSAGE =
-  'カメラが切断されました。接続を確認して、カメラを再取得してください。'
-
-// 切断原因がトラック終了でも映像フリーズでも、同じ通知へまとめる。
-export function showCameraDisconnectedToast() {
-  toast.error('カメラが切断されました', {
-    description: CAMERA_DISCONNECTED_MESSAGE,
-    id: CAMERA_DISCONNECTED_TOAST_ID,
-  })
-}
+// 画面内のエラー表示でも同じ文面を使えるよう、通知の集約元から再公開する。
+export { CAMERA_DISCONNECTED_MESSAGE } from '../../components/Notification/AppToaster.tsx'
 
 type UseCameraDisconnectOptions = {
   onDisconnect: () => void
@@ -38,12 +30,12 @@ export function useCameraDisconnect({
     if (!stream) return
 
     // 新しいストリームを監視し始めた時点で、前回の切断通知を閉じる。
-    toast.dismiss(CAMERA_DISCONNECTED_TOAST_ID)
+    dismissCameraDisconnectedNotification()
 
     // 監視対象はストリームだけに依存させ、コールバックの再生成で二重登録しない。
     return watchCameraStream({
       onDisconnect: () => {
-        showCameraDisconnectedToast()
+        showCameraDisconnectedNotification()
         onDisconnectRef.current()
       },
       stream,

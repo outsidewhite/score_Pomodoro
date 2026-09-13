@@ -6,6 +6,8 @@ import { JourneyScene } from './JourneyScenes.tsx'
 import './ScoreJourney.css'
 
 type ScoreJourneyProps = {
+  earnedScore?: number
+  onDebugEarnedScoreChange?: (score: number | null) => void
   journey: Journey
   motionState: JourneyMotionState
   score: number
@@ -51,7 +53,12 @@ const MOTION_STATE_LABELS: Record<JourneyMotionState, string> = {
 // 本番画面へデバッグ操作を露出させず、開発サーバーでは削除せず使い続けられるようにする。
 const SHOW_DEBUG_CONTROLS = import.meta.env.DEV
 
-export function ScoreJourney({ journey, motionState, score }: ScoreJourneyProps) {
+export function ScoreJourney({ earnedScore = 0, onDebugEarnedScoreChange, journey, motionState, score }: ScoreJourneyProps) {
+  // 入力中の値は確定スコアと分離し、「反映」またはEnterでまとめて変更する。
+  const [debugScoreInput, setDebugScoreInput] = useState<string | null>(null)
+  const debugScoreValue = debugScoreInput ?? String(earnedScore)
+  const isDebugScoreValid = debugScoreValue.trim() !== '' &&
+    Number.isSafeInteger(Number(debugScoreValue)) && Number(debugScoreValue) >= 0
   const safeScore = Number.isFinite(score) ? Math.max(0, score) : 0
   const previousScoreRef = useRef(safeScore)
   const previousJourneyRef = useRef(journey)
@@ -177,6 +184,33 @@ export function ScoreJourney({ journey, motionState, score }: ScoreJourneyProps)
         >
           <span className="score-journey__debug-title">DEBUG</span>
           <div className="score-journey__debug-groups">
+            {onDebugEarnedScoreChange && (
+              <form className="score-journey__debug-score" onSubmit={(event) => {
+                event.preventDefault()
+                if (!isDebugScoreValid) return
+                onDebugEarnedScoreChange(Number(debugScoreValue))
+                setDebugScoreInput(null)
+              }}>
+                <label>
+                  <span>獲得スコア</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max={Number.MAX_SAFE_INTEGER}
+                    step="1"
+                    required
+                    value={debugScoreValue}
+                    onChange={(event) => setDebugScoreInput(event.target.value)}
+                  />
+                </label>
+                <button type="submit" disabled={!isDebugScoreValid}>反映</button>
+                <button type="button" onClick={() => {
+                  onDebugEarnedScoreChange(null)
+                  setDebugScoreInput(null)
+                }}>実測に戻す</button>
+                <small>累積値を変更します。再読み込みで解除されます。</small>
+              </form>
+            )}
             <div className="score-journey__debug-group">
               <span>表示</span>
               <div>

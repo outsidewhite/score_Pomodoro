@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Cloudflareのローカル状態と開発用秘密情報
+.wrangler
+.dev.vars*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

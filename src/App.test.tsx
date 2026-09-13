@@ -12,6 +12,10 @@ const measurementPageMock = vi.hoisted(() => vi.fn())
 
 vi.mock('./components/Notification/AppToaster.tsx', () => ({
   AppToaster: () => null,
+  CAMERA_DISCONNECTED_MESSAGE:
+    'カメラが切断されました。接続を確認して、カメラを再取得してください。',
+  dismissCameraDisconnectedNotification: vi.fn(),
+  showCameraDisconnectedNotification: vi.fn(),
 }))
 
 vi.mock('./pages/measurement/MeasurementPage.tsx', () => ({
@@ -281,6 +285,53 @@ describe('計測中のカメラ切断', () => {
     await screen.findByText('preparing')
     expect(screen.getByTestId('camera-stop-request')).toHaveTextContent('1')
     expect(screen.getByText(CAMERA_DISCONNECTED_MESSAGE)).toBeInTheDocument()
+  })
+
+  test('手動設定した獲得スコアへ採点分を加算し、実測への復帰と再計測で解除できる', async () => {
+    const user = userEvent.setup()
+    mockCameraTracks()
+    render(<App />)
+    await screen.findByText('measuring')
+    const currentProps = () => measurementPageMock.mock.calls.at(-1)![0]
+
+    act(() => currentProps().onDebugEarnedScoreChange(900))
+    expect(currentProps().scoreIncrement).toBe(900)
+    // 架空の採点区間を増やさず、次の実測区間だけが保存されることを確認する。
+    act(() => currentProps().onScoreUpdate({
+      absentCount: 0,
+      calibrationSucceeded: true,
+      detectedCount: 120,
+      detectionScore: 100,
+      earnedScore: 3,
+      endedAt: 60_000,
+      failedCount: 0,
+      id: `${currentProps().sessionId}:interval:1`,
+      isCalibration: true,
+      missedCount: 0,
+      postureScore: null,
+      stabilityScore: 100,
+      startedAt: 0,
+      totalScore: 100,
+    }))
+    expect(currentProps().scoreIncrement).toBe(903)
+    const stored = JSON.parse(window.sessionStorage.getItem('score-pomodoro:scoring-session')!)
+    expect(stored.intervals).toHaveLength(1)
+    expect(stored.intervals[0].earnedScore).toBe(3)
+
+    act(() => currentProps().onDebugEarnedScoreChange(null))
+    expect(currentProps().scoreIncrement).toBe(3)
+    act(() => currentProps().onDebugEarnedScoreChange(0))
+    expect(currentProps().scoreIncrement).toBe(0)
+    act(() => currentProps().onDebugEarnedScoreChange(900))
+    act(() => currentProps().onFinish())
+    expect(screen.getByText('900')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /もう一度/ }))
+    act(() => {
+      window.history.pushState(null, '', '/measurement')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    await screen.findByText('measuring')
+    expect(currentProps().scoreIncrement).toBe(0)
   })
 
   test('切断しても完了区間とメモリ上の基準姿勢は破棄しない', async () => {

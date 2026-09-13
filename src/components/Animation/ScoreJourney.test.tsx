@@ -1,11 +1,40 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createJourney } from '../../features/trip/createJourney.ts'
 import { ScoreJourney } from './ScoreJourney.tsx'
 
 describe('ScoreJourney', () => {
   const journey = createJourney(() => 0)
+
+  it('獲得スコアは反映時だけ通知し、空欄・負数・小数を拒否する', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<ScoreJourney journey={journey} motionState="score2" score={3}
+      earnedScore={3} onDebugEarnedScoreChange={onChange} />)
+    const input = screen.getByRole('spinbutton', { name: '獲得スコア' })
+    const apply = screen.getByRole('button', { name: '反映' })
+
+    // 未確定の入力や無効値で旅の位置が変わらないことを確認する。
+    await user.clear(input)
+    expect(apply).toBeDisabled()
+    for (const value of ['-1', '1.5', '9007199254740992']) {
+      await user.type(input, value)
+      expect(apply).toBeDisabled()
+      await user.click(apply)
+      await user.clear(input)
+    }
+    await user.type(input, '900')
+    expect(onChange).not.toHaveBeenCalled()
+    await user.click(apply)
+    expect(onChange).toHaveBeenLastCalledWith(900)
+
+    await user.clear(input)
+    await user.type(input, '0{Enter}')
+    expect(onChange).toHaveBeenLastCalledWith(0)
+    await user.click(screen.getByRole('button', { name: '実測に戻す' }))
+    expect(onChange).toHaveBeenLastCalledWith(null)
+  })
 
   it.each([
     [0, '日本ステージ', /^日本を走る車/],
