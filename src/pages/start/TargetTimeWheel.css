@@ -1,0 +1,45 @@
+/* 時・分の2列を入力欄と同じ幅で並べ、選択中の行だけを機能色で強調する。 */
+.target-time-wheel {
+  width: min(240px, 100%);
+  margin: 0 auto;
+}
+
+.target-time-wheel__wrapper {
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.target-time-wheel [data-rwp] {
+  cursor: grab;
+  touch-action: none;
+}
+
+.target-time-wheel [data-rwp]:active {
+  cursor: grabbing;
+}
+
+.target-time-wheel__option {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.target-time-wheel__highlight {
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--panel-strong);
+  background: var(--panel-soft);
+  transition: box-shadow 160ms ease;
+}
+
+.target-time-wheel__highlight-item {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+/* ライブラリのCSSはフォーカス枠を消し、外側もoverflowとマスクで切れるため、選択行の内側に示す。 */
+.target-time-wheel [data-rwp]:focus-visible .target-time-wheel__highlight {
+  border-color: var(--color-primary);
+  box-shadow: inset 0 0 0 3px rgb(23 106 115 / 24%);
+}

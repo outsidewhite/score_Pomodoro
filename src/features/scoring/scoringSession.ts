@@ -29,8 +29,9 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
-function isPositiveInteger(value: unknown): value is number {
-  return Number.isInteger(value) && (value as number) > 0
+// 目標時間0分は「目標なし」のセッションとして有効に扱う。
+function isNonNegativeInteger(value: unknown): value is number {
+  return Number.isInteger(value) && (value as number) >= 0
 }
 
 function isScore(value: unknown): value is number {
@@ -104,7 +105,7 @@ function normalizeSession(value: unknown): ScoringSession | null {
     session.version !== STORAGE_VERSION ||
     typeof session.sessionId !== 'string' ||
     session.sessionId.length === 0 ||
-    !isPositiveInteger(session.targetMinutes) ||
+    !isNonNegativeInteger(session.targetMinutes) ||
     !Array.isArray(session.intervals) ||
     !session.intervals.every(isValidInterval)
   ) {

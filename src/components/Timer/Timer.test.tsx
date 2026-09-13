@@ -136,6 +136,20 @@ test('目標時間が渡されない場合はシークバーを表示しない',
   expect(screen.queryByRole('progressbar')).toBeNull()
 })
 
+test('目標時間が0分の場合もシークバーを表示せず、00:00:00から計測する', async () => {
+  const user = userEvent.setup()
+  render(<Timer onExit={vi.fn()} targetMinutes={0} />)
+
+  expect(screen.getByText('00:00:00')).toBeInTheDocument()
+  expect(screen.queryByRole('progressbar')).toBeNull()
+
+  await user.click(screen.getByRole('button', { name: 'タイマーを開始する' }))
+
+  // 目標なしでも通常どおり計測し、途中でシークバーが現れない。
+  expect(screen.getByRole('button', { name: 'タイマーを停止する' })).toBeInTheDocument()
+  expect(screen.queryByRole('progressbar')).toBeNull()
+})
+
 test('復元した経過時間を目標時間の進捗へ反映する', () => {
   render(
     <Timer initialElapsedMs={750_000} onExit={vi.fn()} targetMinutes={25} />,
