@@ -1,7 +1,19 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { StartPage } from './StartPage.tsx'
+
+beforeEach(() => {
+  // Nodeとjsdomで異なる時刻基準を揃え、ホイールのアニメーション完了を実ブラウザ同様に再現する。
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+    window.setTimeout(() => callback(performance.now()), 16),
+  )
+  vi.stubGlobal('cancelAnimationFrame', (handle: number) => window.clearTimeout(handle))
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 function getTimeInputs() {
   return {
