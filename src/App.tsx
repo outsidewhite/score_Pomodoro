@@ -286,9 +286,11 @@ function App() {
       {page === 'result' && (
         <ResultPage
           earnedScore={totalEarnedScore}
+          journey={journey}
           onRestart={handleRestart}
           originalScore={INITIAL_SCORE}
           result={scoreResult}
+          sessionId={scoringSession.sessionId}
         />
       )}
     </div>

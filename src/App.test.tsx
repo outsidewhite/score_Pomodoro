@@ -325,7 +325,7 @@ describe('計測中のカメラ切断', () => {
     act(() => currentProps().onDebugEarnedScoreChange(900))
     act(() => currentProps().onFinish())
     expect(screen.getByText('900')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /もう一度/ }))
+    await user.click(screen.getByRole('button', { name: 'リトライ' }))
     act(() => {
       window.history.pushState(null, '', '/measurement')
       window.dispatchEvent(new PopStateEvent('popstate'))
