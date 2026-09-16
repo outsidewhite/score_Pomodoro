@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { AppHeader } from '../../components/ui/AppHeader.tsx'
 import { Button } from '../../components/ui/Button.tsx'
+import { CautionList, type CautionItem } from '../../components/ui/CautionList.tsx'
 import {
   formatTimeUnit,
   getTimeUnitError,
@@ -36,6 +37,12 @@ const UNIT_LABEL: Record<TargetTimeUnit, string> = {
   hours: '時間',
   minutes: '分',
 }
+
+const CAUTION_ITEMS: CautionItem[] = [
+  { id: 'tab-switch', text: 'タブを切り替えると正しく計測できません。' },
+  { id: 'camera-framing', text: 'カメラには肩まで映るように調整してください。' },
+  { id: 'tab-close', text: '計測中にタブを閉じると、計測結果が破棄されます。' },
+]
 
 function formatTargetTimeInputs({ hours, minutes }: TargetTimeParts) {
   return {
@@ -128,68 +135,77 @@ export function StartPage({
           <span>作業時間を設定して、あなたの集中をスコアに残します。</span>
         </div>
 
-        {/* 計測画面と同じ機能色を使い、時間設定をひと目で把握できるようにする。 */}
-        <div className="start-page__settings">
-          <section
-            className="setting-card setting-card--time"
-            aria-labelledby="target-time-title"
-          >
-            <div className="setting-card__heading">
-              <span className="setting-card__icon setting-card__icon--clock" aria-hidden="true" />
-              <div>
-                <p>SESSION LENGTH</p>
-                <h2 id="target-time-title">目標時間</h2>
-              </div>
-            </div>
+        <div className="start-page__layout">
+          <div className="start-page__cautions">
+            <CautionList items={CAUTION_ITEMS} />
+          </div>
 
-            <div className="setting-card__control">
-              <div className="target-time-fields">
-                {UNITS.map((unit, index) => (
-                  <div className="target-time-fields__item" key={unit}>
-                    {index > 0 && (
-                      <span className="target-time-fields__separator" aria-hidden="true">
-                        :
-                      </span>
-                    )}
-                    <div className="target-time-field">
-                      <input
-                        ref={inputRefs[unit]}
-                        id={`target-time-${unit}`}
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="off"
-                        maxLength={2}
-                        value={inputs[unit]}
-                        aria-invalid={visibleErrors[unit] ? true : undefined}
-                        aria-describedby={
-                          visibleErrors[unit] ? `target-time-${unit}-error` : undefined
-                        }
-                        onBlur={() => handleInputBlur(unit)}
-                        onChange={(event) => handleInputChange(unit, event.target.value)}
-                      />
-                      <label htmlFor={`target-time-${unit}`}>
-                        <span className="sr-only">目標時間の</span>
-                        {UNIT_LABEL[unit]}
-                      </label>
+          {/* 計測画面と同じ機能色を使い、時間設定をひと目で把握できるようにする。 */}
+          <div className="start-page__settings">
+            <section
+              className="setting-card setting-card--time"
+              aria-labelledby="target-time-title"
+            >
+              <div className="setting-card__heading">
+                <span
+                  className="setting-card__icon setting-card__icon--clock"
+                  aria-hidden="true"
+                />
+                <div>
+                  <p>SESSION LENGTH</p>
+                  <h2 id="target-time-title">目標時間</h2>
+                </div>
+              </div>
+
+              <div className="setting-card__control">
+                <div className="target-time-fields">
+                  {UNITS.map((unit, index) => (
+                    <div className="target-time-fields__item" key={unit}>
+                      {index > 0 && (
+                        <span className="target-time-fields__separator" aria-hidden="true">
+                          :
+                        </span>
+                      )}
+                      <div className="target-time-field">
+                        <input
+                          ref={inputRefs[unit]}
+                          id={`target-time-${unit}`}
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          maxLength={2}
+                          value={inputs[unit]}
+                          aria-invalid={visibleErrors[unit] ? true : undefined}
+                          aria-describedby={
+                            visibleErrors[unit] ? `target-time-${unit}-error` : undefined
+                          }
+                          onBlur={() => handleInputBlur(unit)}
+                          onChange={(event) => handleInputChange(unit, event.target.value)}
+                        />
+                        <label htmlFor={`target-time-${unit}`}>
+                          <span className="sr-only">目標時間の</span>
+                          {UNIT_LABEL[unit]}
+                        </label>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
 
-              <TargetTimeWheel value={wheelValue} onChange={handleWheelChange} />
+                <TargetTimeWheel value={wheelValue} onChange={handleWheelChange} />
 
-              {/* 領域を常に置いておき、エラー文の追加をスクリーンリーダーへ確実に伝える。 */}
-              <div className="setting-card__errors" aria-live="polite">
-                {UNITS.map((unit) =>
-                  visibleErrors[unit] ? (
-                    <p key={unit} id={`target-time-${unit}-error`}>
-                      {visibleErrors[unit]}
-                    </p>
-                  ) : null,
-                )}
+                {/* 領域を常に置いておき、エラー文の追加をスクリーンリーダーへ確実に伝える。 */}
+                <div className="setting-card__errors" aria-live="polite">
+                  {UNITS.map((unit) =>
+                    visibleErrors[unit] ? (
+                      <p key={unit} id={`target-time-${unit}-error`}>
+                        {visibleErrors[unit]}
+                      </p>
+                    ) : null,
+                  )}
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
 
         <div className="start-page__action">
