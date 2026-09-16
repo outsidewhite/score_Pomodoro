@@ -1,6 +1,7 @@
 import type { Journey, JourneyPosition, RoutePoint } from './types.ts'
 
-export const SCORE_PER_DESTINATION = 45
+// 旅のテンポを保つため、すべての目的地と探索レベルを30点間隔にそろえる。
+export const SCORE_PER_DESTINATION = 30
 
 export function getJourneyPoints(journey: Journey): readonly RoutePoint[] {
   return [

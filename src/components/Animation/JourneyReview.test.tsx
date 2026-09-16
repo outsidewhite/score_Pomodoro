@@ -6,8 +6,8 @@ import { JourneyReview } from './JourneyReview.tsx'
 
 const journey = createJourney(() => 0)
 // 地図とリストの双方へ同一の到着記録を渡す。
-const element = (score = 45, isFocused = false) => (
-  <JourneyReview arrivals={{ 45: 1_201_000 }} journey={journey} score={score} isFocused={isFocused}>
+const element = (score = 30, isFocused = false) => (
+  <JourneyReview arrivals={{ 30: 1_201_000 }} journey={journey} score={score} isFocused={isFocused}>
     <div>旅のアニメーション</div>
   </JourneyReview>
 )
@@ -46,14 +46,14 @@ describe('旅の地図と目的地リスト', () => {
 
   it('宇宙の丸は固定したまま、次の目的地になるまで名前を伏せる', async () => {
     const user = userEvent.setup()
-    const { rerender } = render(element(900))
+    const { rerender } = render(element(600))
     await user.click(screen.getByRole('button', { name: '地図を開く' }))
     const coordinates = () => [...screen.getByRole('img', { name: '月への旅の地図' }).querySelectorAll('circle[stroke-width="2"]')]
       .map((circle) => [circle.getAttribute('cx'), circle.getAttribute('cy')])
     const initial = coordinates()
     expect(initial).toHaveLength(4)
     expect(within(screen.getByRole('dialog')).queryByText('月への航路')).not.toBeInTheDocument()
-    rerender(element(945))
+    rerender(element(630))
     expect(coordinates()).toEqual(initial)
     expect(within(screen.getByRole('dialog')).getByText('月への航路', { selector: 'strong' })).toBeInTheDocument()
     expect(within(screen.getByRole('dialog')).queryByText('月周回軌道')).not.toBeInTheDocument()
@@ -75,7 +75,7 @@ describe('旅の地図と目的地リスト', () => {
     const user = userEvent.setup()
     const { rerender } = render(element())
     await user.click(screen.getByRole('button', { name: '目的地リストを開く' }))
-    rerender(element(45, true))
+    rerender(element(30, true))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '地図を開く' })).toBeDisabled()
     expect(screen.getByRole('button', { name: '目的地リストを開く' })).toBeDisabled()
@@ -85,7 +85,7 @@ describe('旅の地図と目的地リスト', () => {
 
   it('最終目的地以降に???の行を追加しない', async () => {
     const user = userEvent.setup()
-    render(element(1080))
+    render(element(720))
     await user.click(screen.getByRole('button', { name: '目的地リストを開く' }))
     expect(within(screen.getByRole('dialog')).queryByText('???')).not.toBeInTheDocument()
     expect(screen.getAllByRole('listitem')).toHaveLength(24)

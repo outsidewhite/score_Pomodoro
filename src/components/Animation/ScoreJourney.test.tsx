@@ -38,8 +38,8 @@ describe('ScoreJourney', () => {
 
   it.each([
     [0, '日本ステージ', /^日本を走る車/],
-    [360, '世界ステージ', /^世界を巡る飛行機/],
-    [900, '宇宙ステージ', /^宇宙を進む宇宙船/],
+    [240, '世界ステージ', /^世界を巡る飛行機/],
+    [600, '宇宙ステージ', /^宇宙を進む宇宙船/],
   ] as const)('%i点では%sのアニメーションを表示する', (score, stageName, sceneName) => {
     render(<ScoreJourney journey={journey} motionState="score2" score={score} />)
 
@@ -84,11 +84,11 @@ describe('ScoreJourney', () => {
 
   it.each([
     [0, 'idle', /^日本のコンビニで停車中/],
-    [360, 'idle', /^世界ステージの空港で停止中/],
-    [900, 'idle', /^宇宙空間を漂って停止中/],
+    [240, 'idle', /^世界ステージの空港で停止中/],
+    [600, 'idle', /^宇宙空間を漂って停止中/],
     [0, 'break', /^日本のホテルでひと休み/],
-    [360, 'break', /^世界の空港ラウンジで休憩中/],
-    [900, 'break', /^宇宙ポッド室内で休憩中/],
+    [240, 'break', /^世界の空港ラウンジで休憩中/],
+    [600, 'break', /^宇宙ポッド室内で休憩中/],
   ] as const)('%s点の%s状態では専用シーンを表示する', (score, motionState, sceneName) => {
     render(
       <ScoreJourney
@@ -101,7 +101,7 @@ describe('ScoreJourney', () => {
     expect(screen.getByRole('img', { name: sceneName })).toBeInTheDocument()
   })
 
-  it.each([0, 360, 900])('%i点でも準備中は自宅の独立ステージを表示する', (score) => {
+  it.each([0, 240, 600])('%i点でも準備中は自宅の独立ステージを表示する', (score) => {
     const { container } = render(
       <ScoreJourney journey={journey} motionState="preparing" score={score} />,
     )
@@ -114,15 +114,15 @@ describe('ScoreJourney', () => {
       .toBeInTheDocument()
   })
 
-  it('45点の目的地境界を越えた場合だけ到着演出を開始する', async () => {
+  it('30点の目的地境界を越えた場合だけ到着演出を開始する', async () => {
     const { container, rerender } = render(
-      <ScoreJourney journey={journey} motionState="score2" score={44} />,
+      <ScoreJourney journey={journey} motionState="score2" score={29} />,
     )
     const scene = container.querySelector('.score-journey__scene')
     expect(scene).not.toHaveClass('score-journey__scene--arrival')
 
     rerender(
-      <ScoreJourney journey={journey} motionState="score2" score={45} />,
+      <ScoreJourney journey={journey} motionState="score2" score={30} />,
     )
     await waitFor(() =>
       expect(scene).toHaveClass('score-journey__scene--arrival'),
@@ -130,19 +130,19 @@ describe('ScoreJourney', () => {
 
     // 同じスコアの再描画では要素を作り直さず、到着演出を再開しない。
     rerender(
-      <ScoreJourney journey={journey} motionState="score2" score={45} />,
+      <ScoreJourney journey={journey} motionState="score2" score={30} />,
     )
     expect(container.querySelector('.score-journey__scene')).toBe(scene)
   })
 
   it('最後の目的地以降は探索レベルを表示し、レベル更新で到着演出を行わない', async () => {
     const { container, rerender } = render(
-      <ScoreJourney journey={journey} motionState="score2" score={1_035} />,
+      <ScoreJourney journey={journey} motionState="score2" score={690} />,
     )
     expect(screen.getByText('探索レベル 1')).toBeInTheDocument()
 
     rerender(
-      <ScoreJourney journey={journey} motionState="score2" score={1_080} />,
+      <ScoreJourney journey={journey} motionState="score2" score={720} />,
     )
     await screen.findByText('探索レベル 2')
     expect(container.querySelector('.score-journey__scene')).not.toHaveClass(

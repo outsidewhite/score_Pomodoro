@@ -20,34 +20,34 @@ describe('createJourney', () => {
 describe('getJourneyPosition', () => {
   const journey = createJourney(() => 0)
 
-  it('45点ごとに次の目的地へ移動する', () => {
+  it('30点ごとに次の目的地へ移動する', () => {
     expect(getJourneyPosition(0, journey).currentPoint.name).toBe('スタート')
-    expect(getJourneyPosition(44, journey).currentPoint.name).toBe('スタート')
-    expect(getJourneyPosition(45, journey).currentPoint.name).toBe('福岡')
-    expect(getJourneyPosition(90, journey).currentPoint.name).toBe('広島')
+    expect(getJourneyPosition(29, journey).currentPoint.name).toBe('スタート')
+    expect(getJourneyPosition(30, journey).currentPoint.name).toBe('福岡')
+    expect(getJourneyPosition(60, journey).currentPoint.name).toBe('広島')
   })
 
   it('目的地を越えた点数を次の区間へ持ち越す', () => {
-    const position = getJourneyPosition(47, journey)
+    const position = getJourneyPosition(32, journey)
 
     expect(position.currentPoint.name).toBe('福岡')
     expect(position.destination?.name).toBe('広島')
     expect(position.progressScore).toBe(2)
-    expect(position.requiredScore).toBe(45)
+    expect(position.requiredScore).toBe(30)
   })
 
-  it('最後の目的地以降は45点ごとに探索レベルを上げる', () => {
-    expect(getJourneyPosition(1_034, journey).explorationLevel).toBeNull()
-    expect(getJourneyPosition(1_035, journey)).toMatchObject({
+  it('最後の目的地以降は30点ごとに探索レベルを上げる', () => {
+    expect(getJourneyPosition(689, journey).explorationLevel).toBeNull()
+    expect(getJourneyPosition(690, journey)).toMatchObject({
       explorationLevel: 1,
       progressScore: 0,
-      requiredScore: 45,
+      requiredScore: 30,
     })
-    expect(getJourneyPosition(1_079, journey)).toMatchObject({
+    expect(getJourneyPosition(719, journey)).toMatchObject({
       explorationLevel: 1,
-      progressScore: 44,
+      progressScore: 29,
     })
-    expect(getJourneyPosition(1_080, journey)).toMatchObject({
+    expect(getJourneyPosition(720, journey)).toMatchObject({
       explorationLevel: 2,
       progressScore: 0,
     })
