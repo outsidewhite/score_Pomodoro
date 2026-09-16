@@ -11,6 +11,8 @@ export type JourneyStop = {
 }
 
 const STORAGE_KEY = 'score-pomodoro:journey-arrivals'
+// 45点基準の履歴を新しい30点基準へ誤って対応付けないため、保存形式を更新する。
+const STORAGE_VERSION = 2
 const ESTIMATED_LEG_MS = 15 * 60_000
 
 export function formatJourneyTime(elapsedMs: number) {
@@ -56,7 +58,7 @@ export function getJourneyStops(journey: Journey, score: number, arrivals: Journ
 export function loadJourneyArrivals(sessionId: string, journey: Journey): JourneyArrivals {
   try {
     const value = JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) ?? 'null')
-    if (value?.sessionId !== sessionId || value?.version !== 1 ||
+    if (value?.sessionId !== sessionId || value?.version !== STORAGE_VERSION ||
       value?.routeIds !== `${journey.japanRoute.id}/${journey.worldRoute.id}` ||
       !value.arrivals || typeof value.arrivals !== 'object') return {}
     const scores = new Set(getJourneyPoints(journey).map((point) => point.requiredScore))
@@ -72,7 +74,8 @@ export function loadJourneyArrivals(sessionId: string, journey: Journey): Journe
 export function saveJourneyArrivals(sessionId: string, journey: Journey, arrivals: JourneyArrivals) {
   try {
     window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-      version: 1, sessionId, routeIds: `${journey.japanRoute.id}/${journey.worldRoute.id}`, arrivals,
+      version: STORAGE_VERSION, sessionId,
+      routeIds: `${journey.japanRoute.id}/${journey.worldRoute.id}`, arrivals,
     }))
   } catch {
     // 保存が制限されている環境でも、メモリ上の履歴で計測を続ける。
