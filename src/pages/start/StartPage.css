@@ -42,13 +42,23 @@
   font-size: 14px;
 }
 
+/* measurement/resultページと同じ比率で、左に注意事項・右に目標時間設定を並べる。 */
+.start-page__layout {
+  display: grid;
+  width: min(900px, 100%);
+  margin-top: clamp(32px, 6vh, 64px);
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 3fr);
+  gap: var(--app-panel-gap);
+  align-items: start;
+}
+
+.start-page__cautions {
+  min-width: 0;
+}
+
 /* 計測画面の2色をそのまま設定カードへ引き継ぐ。 */
 .start-page__settings {
-  display: grid;
-  width: min(450px, 100%);
-  margin-top: clamp(32px, 6vh, 64px);
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--app-panel-gap);
+  min-width: 0;
 }
 
 .setting-card {
@@ -264,7 +274,7 @@
     padding-top: var(--space-8);
   }
 
-  .start-page__settings {
+  .start-page__layout {
     margin-top: var(--space-8);
     grid-template-columns: 1fr;
   }
