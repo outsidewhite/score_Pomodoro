@@ -75,16 +75,22 @@ export function ResultPage({
 
   const handleShare = async () => {
     const shareText = `歩モロードで${currentScore.toLocaleString('ja-JP')}点を獲得し、${currentPlace}に到着しました！ 作業時間 ${formatDuration(measuredDurationMs)}`
+    // 共有先からアプリへ戻れるよう、表示中のページURLも結果に添える。
+    const shareUrl = window.location.href
 
     try {
       if (navigator.share) {
-        await navigator.share({ title: '歩モロード 計測結果', text: shareText })
+        await navigator.share({
+          title: '歩モロード 計測結果',
+          text: shareText,
+          url: shareUrl,
+        })
         setIsShared(true)
         return
       }
 
       if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareText)
+        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`)
         setIsShared(true)
       }
     } catch (error) {

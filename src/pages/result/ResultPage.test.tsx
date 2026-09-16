@@ -81,11 +81,48 @@ describe('計測結果画面', () => {
       const sharedButton = await screen.findByRole('button', { name: '共有済み' })
       expect(sharedButton).toHaveAttribute('aria-pressed', 'true')
       expect(sharedButton).toHaveClass('result-actions__share--complete')
-      expect(share).toHaveBeenCalledOnce()
+      expect(share).toHaveBeenCalledWith(expect.objectContaining({
+        url: window.location.href,
+      }))
     } finally {
       Object.defineProperty(navigator, 'share', {
         configurable: true,
         value: originalShare,
+      })
+    }
+  })
+
+  test('共有APIがない場合は結果とURLをクリップボードへコピーする', async () => {
+    const user = userEvent.setup()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    const originalShare = navigator.share
+    const originalClipboard = navigator.clipboard
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: undefined,
+    })
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+
+    try {
+      renderResultPage()
+      await user.click(screen.getByRole('button', { name: '結果を共有' }))
+
+      expect(writeText).toHaveBeenCalledWith(
+        expect.stringContaining(`\n${window.location.href}`),
+      )
+      expect(await screen.findByRole('button', { name: '共有済み' }))
+        .toHaveAttribute('aria-pressed', 'true')
+    } finally {
+      Object.defineProperty(navigator, 'share', {
+        configurable: true,
+        value: originalShare,
+      })
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: originalClipboard,
       })
     }
   })
